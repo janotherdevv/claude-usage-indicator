@@ -107,7 +107,7 @@ class UsageWindow:
             box.pack_start(Gtk.Label(label="No data yet — updating..."), False, False, 0)
 
         self.window.show_all()
-
+    # Build the section for either 5h or 7d data
     def _section(self, label_text, data):
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
 
