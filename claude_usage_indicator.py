@@ -19,7 +19,7 @@ from gi.repository import Gtk, GLib
 
 CREDENTIALS_PATH = Path.home() / ".claude" / ".credentials.json"
 API_URL = "https://api.anthropic.com/api/oauth/usage"
-POLL_INTERVAL = 300  # seconds
+POLL_INTERVAL = 1800  # seconds (30 minutes)
 
 SCRIPT_DIR = Path(__file__).parent
 
