@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Claude Usage Indicator — Ubuntu System Tray"""
 
+import io
 import json
 import math
 import time
@@ -22,33 +23,41 @@ POLL_INTERVAL = 300  # seconds
 
 SCRIPT_DIR = Path(__file__).parent
 
-# Semantic colors (R, G, B) normalized 0–1
-_COLOR_GREEN = (0.149, 0.635, 0.412)   # #26A269
-_COLOR_AMBER = (0.898, 0.647, 0.039)   # #E5A50A
-_COLOR_RED   = (0.753, 0.110, 0.157)   # #C01C28
+# --- Utilization tier ---------------------------------------------------
+# Single source of truth for the three threshold tiers (green / amber / red).
+
+def _tier(utilization):
+    """Return 0=green, 1=amber, 2=red for a utilization value 0–100."""
+    if utilization >= 90:
+        return 2
+    if utilization >= 70:
+        return 1
+    return 0
+
+_ARC_COLORS = [
+    (0.149, 0.635, 0.412),  # #26A269 green
+    (0.898, 0.647, 0.039),  # #E5A50A amber
+    (0.753, 0.110, 0.157),  # #C01C28 red
+]
+_BAR_CSS = [
+    b"progressbar > trough > progress { background-color: #26A269; background-image: none; }",
+    b"progressbar > trough > progress { background-color: #E5A50A; background-image: none; }",
+    b"progressbar > trough > progress { background-color: #C01C28; background-image: none; }",
+]
+_ICON_NAMES = ["icon_ok.png", "icon_warn.png", "icon_crit.png"]
 
 
 def _arc_color(utilization):
-    if utilization >= 90:
-        return _COLOR_RED
-    elif utilization >= 70:
-        return _COLOR_AMBER
-    return _COLOR_GREEN
-
-
-# Progress bar CSS per state
-_CSS_GREEN = b"progressbar > trough > progress { background-color: #26A269; background-image: none; }"
-_CSS_AMBER = b"progressbar > trough > progress { background-color: #E5A50A; background-image: none; }"
-_CSS_RED   = b"progressbar > trough > progress { background-color: #C01C28; background-image: none; }"
-
+    return _ARC_COLORS[_tier(utilization)]
 
 def _bar_css(utilization):
-    if utilization >= 90:
-        return _CSS_RED
-    elif utilization >= 70:
-        return _CSS_AMBER
-    return _CSS_GREEN
+    return _BAR_CSS[_tier(utilization)]
 
+def icon_path_for(utilization):
+    return str(SCRIPT_DIR / _ICON_NAMES[_tier(utilization)])
+
+
+# --- Icon generation ----------------------------------------------------
 
 def _render_arc_icon(utilization, size=22):
     """Render a circular progress arc icon. Returns PNG bytes."""
@@ -57,11 +66,10 @@ def _render_arc_icon(utilization, size=22):
 
     cx, cy = size / 2, size / 2
     radius = (size / 2) - 2 - 1.5   # 2px margin + half line width
-    line_width = 3.0
     start = math.radians(225)        # 7 o'clock
-    full_end = math.radians(135)     # 5 o'clock  (270° sweep clockwise)
+    full_end = math.radians(135)     # 5 o'clock (270° sweep clockwise)
 
-    ctx.set_line_width(line_width)
+    ctx.set_line_width(3.0)
     ctx.set_line_cap(cairo.LINE_CAP_ROUND)
 
     # Track base: white at 25% opacity
@@ -72,13 +80,11 @@ def _render_arc_icon(utilization, size=22):
     # Colored fill proportional to utilization
     fraction = min(utilization / 100.0, 1.0)
     if fraction > 0:
-        fill_end = start + fraction * math.radians(270)
         r, g, b = _arc_color(utilization)
         ctx.set_source_rgb(r, g, b)
-        ctx.arc(cx, cy, radius, start, fill_end)
+        ctx.arc(cx, cy, radius, start, start + fraction * math.radians(270))
         ctx.stroke()
 
-    import io
     buf = io.BytesIO()
     surface.write_to_png(buf)
     return buf.getvalue()
@@ -86,15 +92,11 @@ def _render_arc_icon(utilization, size=22):
 
 def _generate_icons():
     """Generate the three representative state icons and save to disk."""
-    icons = {
-        "icon_ok.png":   45,   # representative green fill
-        "icon_warn.png": 80,   # representative amber fill
-        "icon_crit.png": 95,   # representative red fill
-    }
-    for filename, util in icons.items():
-        path = SCRIPT_DIR / filename
-        path.write_bytes(_render_arc_icon(util))
+    for name, util in zip(_ICON_NAMES, [45, 80, 95]):
+        (SCRIPT_DIR / name).write_bytes(_render_arc_icon(util))
 
+
+# --- Data layer ---------------------------------------------------------
 
 def read_token():
     try:
@@ -139,15 +141,7 @@ def format_reset_time(iso_str):
         return iso_str
 
 
-def icon_path_for(utilization):
-    if utilization >= 90:
-        name = "icon_crit.png"
-    elif utilization >= 70:
-        name = "icon_warn.png"
-    else:
-        name = "icon_ok.png"
-    return str(SCRIPT_DIR / name)
-
+# --- UI layer -----------------------------------------------------------
 
 class UsageWindow:
     """Popup window — opens in loading state, updates when fresh data arrives."""
@@ -202,7 +196,7 @@ class UsageWindow:
         bar = Gtk.ProgressBar()
         bar.set_size_request(308, 14)
         provider = Gtk.CssProvider()
-        provider.load_from_data(_CSS_GREEN)
+        provider.load_from_data(_BAR_CSS[0])
         bar.get_style_context().add_provider(
             provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         )
@@ -253,6 +247,8 @@ class UsageWindow:
         self.window.present()
 
 
+# --- Tray layer ---------------------------------------------------------
+
 class ClaudeIndicator:
     def __init__(self):
         self.usage_data = None
@@ -267,9 +263,11 @@ class ClaudeIndicator:
         self.status_icon.connect("activate", self._on_left_click)
         self.status_icon.connect("popup-menu", self._on_right_click)
 
-        # First poll immediately
-        self._poll()
-        # Then every 5 minutes
+        # Build menu once — it never changes
+        self._menu = self._build_menu()
+
+        # First poll immediately (async), then every 5 minutes
+        self._start_fetch()
         GLib.timeout_add_seconds(POLL_INTERVAL, self._poll_and_reschedule)
 
     def _build_menu(self):
@@ -280,44 +278,10 @@ class ClaudeIndicator:
         menu.show_all()
         return menu
 
-    def _poll(self):
-        token, err = read_token()
-        if err:
-            self.last_error = err
-            self._set_icon(0)
-            self.status_icon.set_tooltip_text(f"Claude: {err}")
-            return
-
-        data, err = fetch_usage(token)
-        if err:
-            self.last_error = err
-            self._set_icon(0)
-            self.status_icon.set_tooltip_text("Claude: error")
-            return
-
-        self.usage_data = data
-        self.last_error = None
-        self.last_updated = datetime.now()
-
-        five_h = data.get("five_hour", {}).get("utilization", 0)
-        seven_d = data.get("seven_day", {}).get("utilization", 0)
-        self._set_icon(max(five_h, seven_d))
-        self.status_icon.set_tooltip_text(f"Claude  5h:{five_h:.0f}%  7d:{seven_d:.0f}%")
-
-    def _poll_and_reschedule(self):
-        self._poll()
-        return True
-
-    def _set_icon(self, utilization):
-        self.status_icon.set_from_file(icon_path_for(utilization))
-
-    def _on_left_click(self, icon):
-        self.popup_window = UsageWindow()
-        GLib.idle_add(self._position_popup)
-
+    def _start_fetch(self):
+        """Launch a background fetch. No-op if one is already in flight."""
         if self._fetching:
             return
-
         self._fetching = True
 
         def do_fetch():
@@ -330,46 +294,25 @@ class ClaudeIndicator:
 
         threading.Thread(target=do_fetch, daemon=True).start()
 
-    def _position_popup(self):
-        if not self.popup_window:
-            return False
-        win = self.popup_window.window
-        ok, screen, area, orientation = self.status_icon.get_geometry()
-        if not ok:
-            return False
-        w, h = win.get_size()
-        screen_h = screen.get_height()
-        screen_w = screen.get_width()
-        # Align popup left edge with icon, clamp to screen width
-        x = max(0, min(area.x, screen_w - w))
-        # Place below icon if panel is at top, above if at bottom
-        if area.y < screen_h // 2:
-            y = area.y + area.height + 4
-        else:
-            y = area.y - h - 4
-        win.move(x, y)
-        return False
+    def _poll_and_reschedule(self):
+        self._start_fetch()
+        return True
 
-    def _on_right_click(self, icon, button, activate_time):
-        menu = self._build_menu()
-        menu.popup(
-            None, None,
-            Gtk.StatusIcon.position_menu,
-            icon, button, activate_time,
-        )
+    def _apply_usage_data(self, data):
+        """Store fetched data and update icon + tooltip."""
+        self.usage_data = data
+        self.last_error = None
+        self.last_updated = datetime.now()
+        five_h = data.get("five_hour", {}).get("utilization", 0)
+        seven_d = data.get("seven_day", {}).get("utilization", 0)
+        self.status_icon.set_from_file(icon_path_for(max(five_h, seven_d)))
+        self.status_icon.set_tooltip_text(f"Claude  5h:{five_h:.0f}%  7d:{seven_d:.0f}%")
 
     def _on_fetch_done(self, data, error):
         self._fetching = False
-        now = datetime.now()
 
         if not error:
-            self.usage_data = data
-            self.last_error = None
-            self.last_updated = now
-            five_h = data.get("five_hour", {}).get("utilization", 0)
-            seven_d = data.get("seven_day", {}).get("utilization", 0)
-            self._set_icon(max(five_h, seven_d))
-            self.status_icon.set_tooltip_text(f"Claude  5h:{five_h:.0f}%  7d:{seven_d:.0f}%")
+            self._apply_usage_data(data)
         else:
             self.last_error = error
 
@@ -380,7 +323,39 @@ class ClaudeIndicator:
                 updated_at=self.last_updated,
             )
 
+        return False  # Remove from GLib idle queue
+
+    def _on_left_click(self, icon):
+        # Destroy previous window (frees GTK resources and stops its pulse timer)
+        if self.popup_window:
+            self.popup_window.window.destroy()
+
+        self.popup_window = UsageWindow()
+        GLib.idle_add(self._position_popup)
+        self._start_fetch()
+
+    def _position_popup(self):
+        if not self.popup_window:
+            return False
+        win = self.popup_window.window
+        ok, screen, area, _ = self.status_icon.get_geometry()
+        if not ok:
+            return False
+        w, h = win.get_size()
+        x = max(0, min(area.x, screen.get_width() - w))
+        if area.y < screen.get_height() // 2:
+            y = area.y + area.height + 4
+        else:
+            y = area.y - h - 4
+        win.move(x, y)
         return False
+
+    def _on_right_click(self, icon, button, activate_time):
+        self._menu.popup(
+            None, None,
+            Gtk.StatusIcon.position_menu,
+            icon, button, activate_time,
+        )
 
     def run(self):
         Gtk.main()
