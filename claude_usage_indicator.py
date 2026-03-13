@@ -231,6 +231,8 @@ class UsageWindow:
             delta = (datetime.now() - updated_at).total_seconds()
             ts = "Updated just now" if delta < 10 else f"Updated {updated_at.strftime('%H:%M')}"
             self._ts_label.set_text(ts)
+        elif not error:
+            self._ts_label.set_text("–")
 
     def _fill_section(self, section, data):
         utilization = data.get("utilization", 0)
@@ -279,8 +281,10 @@ class ClaudeIndicator:
         return menu
 
     def _start_fetch(self):
-        """Launch a background fetch. No-op if one is already in flight."""
+        """Launch a background fetch. No-op if one is already in flight or data is fresh."""
         if self._fetching:
+            return
+        if self.last_updated and (datetime.now() - self.last_updated).total_seconds() < 60:
             return
         self._fetching = True
 
@@ -313,6 +317,9 @@ class ClaudeIndicator:
 
         if not error:
             self._apply_usage_data(data)
+        elif "429" in error:
+            # Rate limited — silently keep last known state (data or empty)
+            pass
         else:
             self.last_error = error
 
@@ -332,7 +339,16 @@ class ClaudeIndicator:
 
         self.popup_window = UsageWindow()
         GLib.idle_add(self._position_popup)
-        self._start_fetch()
+
+        # If data is fresh enough, show it immediately without a new fetch
+        if self.last_updated and (datetime.now() - self.last_updated).total_seconds() < 60:
+            self.popup_window.update(
+                usage_data=self.usage_data,
+                error=self.last_error,
+                updated_at=self.last_updated,
+            )
+        else:
+            self._start_fetch()
 
     def _position_popup(self):
         if not self.popup_window:
