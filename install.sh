@@ -21,7 +21,7 @@ cat > "$DESKTOP_FILE" <<EOF
 Type=Application
 Name=Claude Usage Indicator
 Exec=python3 $SCRIPT_DIR/claude_usage_indicator.py
-Icon=$SCRIPT_DIR/icon_ok.png
+Icon=$SCRIPT_DIR/assets/icon_ok.png
 Comment=Shows Claude API usage in the system tray
 Categories=Utility;
 StartupNotify=false
