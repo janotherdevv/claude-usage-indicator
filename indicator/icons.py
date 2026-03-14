@@ -7,7 +7,7 @@ from .config import ASSETS_DIR
 from .theme import arc_color, icon_names
 
 
-def _render_arc_icon(utilization, size=22):
+def render_icon(utilization, size=22):
     """Renderiza un icono cuadrado con arco de progreso de 270°.
     Devuelve bytes PNG.
     """
@@ -41,9 +41,24 @@ def _render_arc_icon(utilization, size=22):
     return buf.getvalue()
 
 
+def write_dynamic_icon(utilization):
+    """Renderiza el icono con la utilización real, lo escribe en assets/icon_current.png
+    y devuelve la ruta.
+    """
+    ASSETS_DIR.mkdir(exist_ok=True)
+    path = ASSETS_DIR / "icon_current.png"
+    try:
+        path.write_bytes(render_icon(utilization))
+    except Exception:
+        # Fallback silencioso al icono estático si algo falla
+        from .theme import icon_path_for
+        return icon_path_for(utilization)
+    return str(path)
+
+
 def generate_icons():
-    """Genera los tres iconos de arco representativos."""
+    """Genera los tres iconos de arco representativos (para compatibilidad)."""
     ASSETS_DIR.mkdir(exist_ok=True)
     states = [45, 80, 95]  # OK / WARN / CRIT
     for name, util in zip(icon_names(), states):
-        (ASSETS_DIR / name).write_bytes(_render_arc_icon(util))
+        (ASSETS_DIR / name).write_bytes(render_icon(util))
