@@ -2,7 +2,7 @@
 skills-lock.json
 __pycache__/
 *.log
-assets/
+assets/*
 .agents
 DESIGN-COUNCIL-PRD.md
 GEMINI.md
