@@ -19,25 +19,28 @@ from gi.repository import Gtk, GLib
 
 CREDENTIALS_PATH = Path.home() / ".claude" / ".credentials.json"
 API_URL = "https://api.anthropic.com/api/oauth/usage"
-POLL_INTERVAL = 1800  # seconds (30 minutes)
+POLL_INTERVAL = 1800  # segundos (30 minutos)
 
+# Directorio donde vive el script — usado para localizar los PNG de iconos
 SCRIPT_DIR = Path(__file__).parent
 
-# --- Utilization tier ---------------------------------------------------
-# Single source of truth for the three threshold tiers (green / amber / red).
+# --- Nivel de utilización -----------------------------------------------
+# Fuente única de verdad para los tres niveles de umbral (verde / ámbar / rojo).
 
 def _tier(utilization):
-    """Return 0=green, 1=amber, 2=red for a utilization value 0–100."""
+    """Devuelve 0=verde, 1=ámbar, 2=rojo para un valor de utilización 0–100."""
     if utilization >= 90:
         return 2
     if utilization >= 70:
         return 1
     return 0
 
+# Las tres listas están indexadas por nivel (0/1/2), así que añadir un nuevo
+# nivel solo requiere actualizar _tier() y añadir una entrada a cada lista.
 _ARC_COLORS = [
-    (0.149, 0.635, 0.412),  # #26A269 green
-    (0.898, 0.647, 0.039),  # #E5A50A amber
-    (0.753, 0.110, 0.157),  # #C01C28 red
+    (0.149, 0.635, 0.412),  # #26A269 verde
+    (0.898, 0.647, 0.039),  # #E5A50A ámbar
+    (0.753, 0.110, 0.157),  # #C01C28 rojo
 ]
 _BAR_CSS = [
     b"progressbar > trough > progress { background-color: #26A269; background-image: none; }",
@@ -57,27 +60,32 @@ def icon_path_for(utilization):
     return str(SCRIPT_DIR / _ICON_NAMES[_tier(utilization)])
 
 
-# --- Icon generation ----------------------------------------------------
+# --- Generación de iconos -----------------------------------------------
 
 def _render_arc_icon(utilization, size=22):
-    """Render a circular progress arc icon. Returns PNG bytes."""
+    """Renderiza un icono de arco de progreso circular. Devuelve bytes PNG.
+
+    El arco barre 270° en sentido horario desde las 7 en punto (225°) hasta
+    las 5 en punto (135°). Un track tenue blanco muestra el rango completo;
+    el fill de color cubre la proporción correspondiente al valor de utilización.
+    """
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
     ctx = cairo.Context(surface)
 
     cx, cy = size / 2, size / 2
-    radius = (size / 2) - 2 - 1.5   # 2px margin + half line width
-    start = math.radians(225)        # 7 o'clock
-    full_end = math.radians(135)     # 5 o'clock (270° sweep clockwise)
+    radius = (size / 2) - 2 - 1.5   # 2px margen + mitad del grosor de línea
+    start = math.radians(225)        # 7 en punto
+    full_end = math.radians(135)     # 5 en punto (270° en sentido horario)
 
     ctx.set_line_width(3.0)
     ctx.set_line_cap(cairo.LINE_CAP_ROUND)
 
-    # Track base: white at 25% opacity
+    # Track base: blanco al 25% de opacidad
     ctx.set_source_rgba(1, 1, 1, 0.25)
     ctx.arc(cx, cy, radius, start, full_end)
     ctx.stroke()
 
-    # Colored fill proportional to utilization
+    # Fill de color proporcional a la utilización
     fraction = min(utilization / 100.0, 1.0)
     if fraction > 0:
         r, g, b = _arc_color(utilization)
@@ -91,12 +99,18 @@ def _render_arc_icon(utilization, size=22):
 
 
 def _generate_icons():
-    """Generate the three representative state icons and save to disk."""
+    """Genera los tres iconos de estado representativos y los guarda en disco.
+
+    Usa valores fijos representativos (45 / 80 / 95 %) en lugar del porcentaje
+    real — Gtk.StatusIcon requiere un archivo estático en disco y no puede
+    renderizar surfaces de Cairo directamente. El porcentaje real se muestra
+    en el tooltip y en el popup.
+    """
     for name, util in zip(_ICON_NAMES, [45, 80, 95]):
         (SCRIPT_DIR / name).write_bytes(_render_arc_icon(util))
 
 
-# --- Data layer ---------------------------------------------------------
+# --- Capa de datos ------------------------------------------------------
 
 def read_token():
     try:
@@ -141,10 +155,10 @@ def format_reset_time(iso_str):
         return iso_str
 
 
-# --- UI layer -----------------------------------------------------------
+# --- Capa de UI ---------------------------------------------------------
 
 class UsageWindow:
-    """Popup window — opens in loading state, updates when fresh data arrives."""
+    """Ventana popup — se abre en estado de carga y se actualiza al llegar datos."""
 
     def __init__(self):
         self.window = Gtk.Window()
@@ -175,6 +189,8 @@ class UsageWindow:
         self._ts_label.get_style_context().add_class("dim-label")
         box.pack_start(self._ts_label, False, False, 0)
 
+        # Inicia el pulso inmediatamente para que el usuario vea actividad mientras llegan los datos.
+        # _do_pulse devuelve False (y se detiene) en cuanto _pulsing pasa a False.
         self._pulsing = True
         GLib.timeout_add(80, self._do_pulse)
 
@@ -249,7 +265,7 @@ class UsageWindow:
         self.window.present()
 
 
-# --- Tray layer ---------------------------------------------------------
+# --- Capa de tray -------------------------------------------------------
 
 class ClaudeIndicator:
     def __init__(self):
@@ -265,10 +281,10 @@ class ClaudeIndicator:
         self.status_icon.connect("activate", self._on_left_click)
         self.status_icon.connect("popup-menu", self._on_right_click)
 
-        # Build menu once — it never changes
+        # El menú se construye una sola vez — nunca cambia
         self._menu = self._build_menu()
 
-        # First poll immediately (async), then every 5 minutes
+        # Primer fetch inmediato al arrancar, luego cada 30 minutos
         self._start_fetch()
         GLib.timeout_add_seconds(POLL_INTERVAL, self._poll_and_reschedule)
 
@@ -281,7 +297,15 @@ class ClaudeIndicator:
         return menu
 
     def _start_fetch(self):
-        """Launch a background fetch. No-op if one is already in flight or data is fresh."""
+        """Lanza un fetch en background. No hace nada si ya hay uno en curso o los datos son recientes.
+
+        El cooldown de 60 segundos evita saturar la API cuando el usuario abre
+        el popup varias veces seguidas (también protege contra el bug conocido
+        de 429 en el endpoint /oauth/usage).
+        do_fetch corre en un hilo daemon para no bloquear nunca el bucle GTK.
+        Los resultados se devuelven via GLib.idle_add, que encola el callback
+        en el hilo principal de GTK — desde ahí es seguro tocar widgets de la UI.
+        """
         if self._fetching:
             return
         if self.last_updated and (datetime.now() - self.last_updated).total_seconds() < 60:
@@ -303,7 +327,7 @@ class ClaudeIndicator:
         return True
 
     def _apply_usage_data(self, data):
-        """Store fetched data and update icon + tooltip."""
+        """Guarda los datos obtenidos y actualiza el icono y el tooltip."""
         self.usage_data = data
         self.last_error = None
         self.last_updated = datetime.now()
@@ -313,16 +337,21 @@ class ClaudeIndicator:
         self.status_icon.set_tooltip_text(f"Claude  5h:{five_h:.0f}%  7d:{seven_d:.0f}%")
 
     def _on_fetch_done(self, data, error):
+        # Siempre se ejecuta en el hilo principal de GTK (programado via GLib.idle_add).
         self._fetching = False
 
         if not error:
             self._apply_usage_data(data)
         elif "429" in error:
-            # Rate limited — silently keep last known state (data or empty)
+            # Rate limit — se ignora silenciosamente y se mantiene el último estado conocido.
+            # El endpoint /oauth/usage tiene un bug conocido donde devuelve 429
+            # con retry-after: 0, así que mostramos la caché en lugar de un error.
             pass
         else:
             self.last_error = error
 
+        # Actualiza el popup solo si sigue abierto — el usuario puede haberlo
+        # cerrado antes de que terminara el fetch.
         if self.popup_window and self.popup_window.window.get_visible():
             self.popup_window.update(
                 usage_data=self.usage_data,
@@ -330,17 +359,21 @@ class ClaudeIndicator:
                 updated_at=self.last_updated,
             )
 
-        return False  # Remove from GLib idle queue
+        return False  # Eliminar de la cola de idle de GLib
 
     def _on_left_click(self, icon):
-        # Destroy previous window (frees GTK resources and stops its pulse timer)
+        # Siempre se destruye el popup anterior antes de crear uno nuevo.
+        # Esto libera recursos GTK y detiene el temporizador de animación pulse
+        # de la ventana vieja, que de lo contrario seguiría disparándose en background.
         if self.popup_window:
             self.popup_window.window.destroy()
 
         self.popup_window = UsageWindow()
+        # Se posiciona después de que la ventana se muestre para que get_size() devuelva dimensiones reales.
         GLib.idle_add(self._position_popup)
 
-        # If data is fresh enough, show it immediately without a new fetch
+        # Si los datos en caché tienen menos de 60 segundos, se muestran directamente
+        # sin lanzar otro fetch (evita llamadas innecesarias a la API).
         if self.last_updated and (datetime.now() - self.last_updated).total_seconds() < 60:
             self.popup_window.update(
                 usage_data=self.usage_data,
@@ -358,7 +391,10 @@ class ClaudeIndicator:
         if not ok:
             return False
         w, h = win.get_size()
+        # Se limita x para que el popup nunca salga por el borde derecho de la pantalla.
         x = max(0, min(area.x, screen.get_width() - w))
+        # Se coloca el popup debajo del icono si está en la mitad superior de la
+        # pantalla (panel superior típico), o encima si está en la mitad inferior.
         if area.y < screen.get_height() // 2:
             y = area.y + area.height + 4
         else:
