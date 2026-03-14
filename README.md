@@ -13,7 +13,7 @@ A lightweight system tray application for Linux (Ubuntu/GNOME) that displays rea
 
 ## Screenshots
 
-*(Insert screenshots here of the tray icon and the popup window)*
+![Window](claude-code-usage-window.png)
 
 ## Prerequisites
 
