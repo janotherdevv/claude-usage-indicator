@@ -36,9 +36,15 @@ def fetch_usage(token):
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read())
-            five_h = data.get("five_hour", {}).get("utilization", "?")
-            seven_d = data.get("seven_day", {}).get("utilization", "?")
-            _log.info("OK — 5h: %.1f%%  7d: %.1f%%", five_h, seven_d)
+            five_h = data.get("five_hour", {}).get("utilization", 0)
+            seven_d = data.get("seven_day", {}).get("utilization", 0)
+            five_h_reset = format_reset_time(data.get("five_hour", {}).get("resets_at", ""))
+            seven_d_reset = format_reset_time(data.get("seven_day", {}).get("resets_at", ""))
+            
+            _log.info(
+                "Usage fetched | 5h window: %.1f%% (resets: %s) | 7d window: %.1f%% (resets: %s)",
+                five_h, five_h_reset, seven_d, seven_d_reset
+            )
             return data, None
     except urllib.error.HTTPError as e:
         body = e.read().decode(errors="replace")
