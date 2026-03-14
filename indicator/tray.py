@@ -14,7 +14,7 @@ warnings.filterwarnings("ignore", ".*StatusIcon.*", DeprecationWarning)
 
 from .config import POLL_INTERVAL, _log
 from .theme import tier
-from .icons import write_dynamic_icon
+from .icons import render_pixbuf
 from .api import read_token, fetch_usage, format_reset_time
 from .window import UsageWindow
 
@@ -36,8 +36,8 @@ class ClaudeIndicator(Gtk.Application):
         _log.info("Application activated")
 
         self.status_icon = Gtk.StatusIcon()
-        # Icono inicial vacío (0/0%)
-        self.status_icon.set_from_file(write_dynamic_icon(0.0, 0.0))
+        # Icono inicial vacío (0/0%) desde memoria (Pixbuf)
+        self.status_icon.set_from_pixbuf(render_pixbuf(0.0, 0.0))
         self.status_icon.set_tooltip_text("Claude — loading...")
         self.status_icon.connect("activate", self._on_left_click)
         self.status_icon.connect("popup-menu", self._on_right_click)
@@ -114,8 +114,8 @@ class ClaudeIndicator(Gtk.Application):
         seven_d = data.get("seven_day", {}).get("utilization", 0)
         max_util = max(five_h, seven_d)
         
-        # Icono dinámico con la utilización real de ambos anillos
-        self.status_icon.set_from_file(write_dynamic_icon(five_h, seven_d))
+        # Actualización de icono desde memoria (Pixbuf)
+        self.status_icon.set_from_pixbuf(render_pixbuf(five_h, seven_d))
         self.status_icon.set_tooltip_text(f"Claude Diario:{five_h:.0f}%  Semanal:{seven_d:.0f}%")
 
     def _on_fetch_done(self, data, error):
@@ -243,10 +243,6 @@ class ClaudeIndicator(Gtk.Application):
 
 
 def main():
-    # Asegurar que los iconos básicos existen en la cache
-    from .icons import generate_icons
-    generate_icons()
-    
     app = ClaudeIndicator()
     app.run()
 
