@@ -1,4 +1,4 @@
 .claude
 skills-lock.json
 __pycache__/
-claude_usage_indicator.log
+*.log
