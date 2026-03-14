@@ -47,8 +47,8 @@ label {
     font-weight: 500;
 }
 .metric-box {
-    padding: 16px;
-    border-radius: 12px;
+    padding: 8px 12px;
+    border-radius: 10px;
     background-color: rgba(255, 255, 255, 0.03);
     transition: background-color 0.2s ease;
 }
@@ -108,7 +108,7 @@ class UsageWindow:
         self.window.set_skip_taskbar_hint(True)
         self.window.set_skip_pager_hint(True)
         self.window.set_decorated(False)
-        self.window.set_border_width(32)
+        self.window.set_border_width(20)
         self.window.set_resizable(False)
         self.window.connect("focus-out-event", lambda w, e: w.hide() or True)
         self.window.connect("delete-event", lambda w, e: w.hide() or True)
@@ -120,7 +120,7 @@ class UsageWindow:
         self.pulse_val = 0.0
         self._pulsing = True
 
-        main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=32)
+        main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
         self.window.add(main_box)
 
         # Status Header
@@ -139,7 +139,7 @@ class UsageWindow:
         main_box.pack_start(gauge_box, True, True, 0)
 
         # Metrics Column (Legend and Details)
-        metrics_col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        metrics_col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         main_box.pack_start(metrics_col, False, False, 0)
 
         self._m_daily = self._make_metric("DIARIO")
