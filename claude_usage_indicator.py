@@ -3,6 +3,7 @@
 
 import io
 import json
+import logging
 import math
 import time
 import threading
@@ -13,9 +14,12 @@ from pathlib import Path
 
 import cairo
 
+import warnings
+warnings.filterwarnings("ignore", ".*StatusIcon.*", DeprecationWarning)
+
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GLib
+from gi.repository import Gtk, GLib, Gdk
 
 CREDENTIALS_PATH = Path.home() / ".claude" / ".credentials.json"
 API_URL = "https://api.anthropic.com/api/oauth/usage"
@@ -23,6 +27,17 @@ POLL_INTERVAL = 1800  # segundos (30 minutos)
 
 # Directorio donde vive el script — usado para localizar los PNG de iconos
 SCRIPT_DIR = Path(__file__).parent
+
+# --- Logging ------------------------------------------------------------
+LOG_PATH = SCRIPT_DIR / "claude_usage_indicator.log"
+
+_log = logging.getLogger("claude_usage")
+_log.setLevel(logging.INFO)
+_log.addHandler(logging.FileHandler(LOG_PATH, encoding="utf-8"))
+_log.addHandler(logging.StreamHandler())
+logging.Formatter.default_msec_format = "%s.%03d"
+for h in _log.handlers:
+    h.setFormatter(logging.Formatter("%(asctime)s  %(levelname)s  %(message)s", datefmt="%Y-%m-%d %H:%M:%S"))
 
 # --- Nivel de utilización -----------------------------------------------
 # Fuente única de verdad para los tres niveles de umbral (verde / ámbar / rojo).
@@ -137,14 +152,24 @@ def fetch_usage(token):
     )
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
-            return json.loads(resp.read()), None
+            data = json.loads(resp.read())
+            five_h = data.get("five_hour", {}).get("utilization", "?")
+            seven_d = data.get("seven_day", {}).get("utilization", "?")
+            _log.info("OK — 5h: %.1f%%  7d: %.1f%%", five_h, seven_d)
+            return data, None
     except urllib.error.HTTPError as e:
         body = e.read().decode(errors="replace")
-        return None, f"HTTP {e.code}: {body[:200]}"
+        err = f"HTTP {e.code}: {body[:200]}"
+        _log.error(err)
+        return None, err
     except urllib.error.URLError as e:
-        return None, f"Network error: {e.reason}"
+        err = f"Network error: {e.reason}"
+        _log.error(err)
+        return None, err
     except Exception as e:
-        return None, f"Unexpected error: {e}"
+        err = f"Unexpected error: {e}"
+        _log.error(err)
+        return None, err
 
 
 def format_reset_time(iso_str):
@@ -387,15 +412,20 @@ class ClaudeIndicator:
         if not self.popup_window:
             return False
         win = self.popup_window.window
-        ok, screen, area, _ = self.status_icon.get_geometry()
+        ok, _screen, area, _ = self.status_icon.get_geometry()
         if not ok:
             return False
         w, h = win.get_size()
-        # Se limita x para que el popup nunca salga por el borde derecho de la pantalla.
-        x = max(0, min(area.x, screen.get_width() - w))
-        # Se coloca el popup debajo del icono si está en la mitad superior de la
-        # pantalla (panel superior típico), o encima si está en la mitad inferior.
-        if area.y < screen.get_height() // 2:
+        # Usamos la API moderna de Gdk.Display para obtener las dimensiones del monitor
+        # en el que está el icono del systray, en lugar del Gdk.Screen deprecado.
+        display = Gdk.Display.get_default()
+        monitor = display.get_monitor_at_point(area.x + area.width // 2, area.y + area.height // 2)
+        geom = monitor.get_geometry()
+        # Se limita x para que el popup nunca salga por el borde derecho del monitor.
+        x = max(geom.x, min(area.x, geom.x + geom.width - w))
+        # Se coloca el popup debajo del icono si está en la mitad superior del
+        # monitor (panel superior típico), o encima si está en la mitad inferior.
+        if area.y + area.height // 2 < geom.y + geom.height // 2:
             y = area.y + area.height + 4
         else:
             y = area.y - h - 4
