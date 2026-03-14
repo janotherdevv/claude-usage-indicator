@@ -2,18 +2,16 @@
 
 A lightweight system tray application for Linux (Ubuntu/GNOME) that displays real-time Claude API usage and token utilization.
 
+![Window](claude-code-usage-window.png)
+
 ## Features
 
-*   **Linux Desktop Native:** Specifically designed for Linux environments with GTK 3 support.
+*   **Linux Desktop Native:** Specifically designed for Linux environments with GTK 3 and AppIndicator support.
 *   **Real-time Monitoring:** Displays Claude API usage for both 5-hour and 7-day windows.
-*   **System Tray Integration:** Circular progress icons that change color based on usage levels (OK, Warning, Critical).
-*   **Detailed Popup:** Click the tray icon to see exact percentages and reset times.
-*   **Low Resource Usage:** Written in Python using GTK 3 and Cairo for efficient rendering.
-*   **Autostart:** Simple installation script to ensure the indicator starts with your session.
-
-## Screenshots
-
-![Window](claude-code-usage-window.png)
+*   **Dynamic Tray Icon:** Circular progress arcs rendered in real-time that change color based on usage (OK < 70%, Warning 70-90%, Critical >= 90%).
+*   **Detailed Popup:** Click the tray icon to see exact percentages, reset times, and any API errors.
+*   **Resource Efficient:** Written in Python using Cairo for lightweight vector rendering.
+*   **Standardized Paths:** Follows XDG standards for logs (`~/.local/share`) and cache (`~/.cache`).
 
 ## Prerequisites
 
@@ -26,7 +24,7 @@ sudo apt install python3-gi gir1.2-gtk-3.0 python3-cairo gir1.2-appindicator3-0.
 
 ## Configuration
 
-The application reads your Claude API credentials from a JSON file located at `~/.claude/.credentials.json`. 
+The application reads your Claude API credentials from `~/.claude/.credentials.json`. 
 
 Ensure the file exists with the following structure:
 
@@ -43,6 +41,8 @@ Ensure the file exists with the following structure:
 
 ## Installation
 
+The easiest way to install and configure the application is using the provided installation script:
+
 1.  **Clone the repository:**
     ```bash
     git clone https://github.com/yourusername/claude-usage-indicator.git
@@ -50,7 +50,7 @@ Ensure the file exists with the following structure:
     ```
 
 2.  **Run the installation script:**
-    This script installs the Python package and sets up the autostart entry in `~/.config/autostart/`.
+    This script installs the Python package, ensures system dependencies are met, and sets up the autostart entry.
     ```bash
     chmod +x install.sh
     ./install.sh
@@ -58,38 +58,40 @@ Ensure the file exists with the following structure:
 
 ## Usage
 
-### Starting Manually
-If you want to run it without restarting your session:
+### Command Line
+Once installed, you can start the indicator from your terminal:
 ```bash
 claude-usage-indicator &
 ```
 
 ### Automatic Start
-After running `./install.sh`, the application will start automatically every time you log in to your desktop environment.
+The installation script creates a `.desktop` entry in `~/.config/autostart/`, so the application will start automatically every time you log in to your desktop environment.
 
-### Checking Logs
-Logs are stored in `~/.local/share/claude-usage-indicator/logs/`. The active log file is always `indicator.log`.
-
-At midnight, the application automatically rotates the log file, renaming it to the date it represents (e.g., `2026-03-14.log`) and starting a fresh `indicator.log`.
-
-To monitor real-time activity:
+### Monitoring Logs
+Logs are managed via standard RotatingFileHandlers. You can monitor activity with:
 ```bash
 tail -f ~/.local/share/claude-usage-indicator/logs/indicator.log
 ```
 
-## Project Structure
+## Development & Structure
 
-*   `claude_usage_indicator.py`: Main entry point.
-*   `indicator/`: Core logic package.
-    *   `api.py`: Handles OAuth and API requests.
-    *   `icons.py`: Dynamic icon generation using Cairo.
-    *   `tray.py`: System tray (AppIndicator) implementation.
-    *   `window.py`: Detailed usage popup window.
-    *   `theme.py`: UI colors and thresholds.
-    *   `config.py`: Path and interval configurations.
-*   `assets/`: Storage for generated tray icons.
-*   `install.sh`: Setup script for Linux autostart.
+The project is structured as a standard Python package using `hatchling` as the build system.
+
+### Key Files
+*   `pyproject.toml`: Package metadata and entry points.
+*   `indicator/`: Main package containing the application logic.
+    *   `tray.py`: Application entry point and tray logic.
+    *   `api.py`: Anthropic API integration.
+    *   `icons.py`: Dynamic Cairo-based icon rendering.
+    *   `config.py`: Centralized XDG-compliant path management.
+*   `install.sh`: System-level installation and autostart setup.
+
+### Editable Install
+For development, you can install the package in editable mode:
+```bash
+pip install -e .
+```
 
 ## License
 
-[MIT License](LICENSE) (or specify your license)
+This project is licensed under the [MIT License](LICENSE).
