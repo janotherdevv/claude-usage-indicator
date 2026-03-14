@@ -1,64 +1,88 @@
 import io
 import math
-
 import cairo
 
-from .config import ASSETS_DIR
-from .theme import arc_color, icon_names
+from .theme import arc_color, get_palette
 
 
-def render_icon(utilization, size=22):
-    """Renderiza un icono cuadrado con arco de progreso de 270°.
-    Devuelve bytes PNG.
+def draw_gauge(ctx, x, y, size, five_h_util, seven_d_util, is_tray=False):
     """
-    surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
-    ctx = cairo.Context(surface)
+    Dibuja el 'Obsidian Gauge' con dos anillos concéntricos.
+    - Anillo Exterior (7d): Fino, órbita sutil.
+    - Anillo Interior (5h): Más grueso, pulso inmediato.
+    """
     ctx.set_line_cap(cairo.LINE_CAP_ROUND)
+    palette = get_palette()
 
-    cx, cy = size / 2, size / 2
-    radius = size * 0.36       # ~8px en 22px
-    stroke = size * 0.114      # ~2.5px en 22px
-    start_angle = math.pi * 0.75   # 135° — esquina inferior izquierda
-    sweep = math.pi * 1.5          # 270°
+    # Parámetros según escala
+    # Tray icon es ~22px, Ventana es ~200px
+    if is_tray:
+        outer_radius = size * 0.40
+        inner_radius = size * 0.22
+        outer_stroke = size * 0.08
+        inner_stroke = size * 0.14
+    else:
+        outer_radius = size * 0.38
+        inner_radius = size * 0.28
+        outer_stroke = size * 0.04
+        inner_stroke = size * 0.08
 
-    ctx.set_line_width(stroke)
+    start_angle = -math.pi / 2  # 12 en punto
+    full_sweep = 2 * math.pi
 
-    # Track: blanco al 20% de opacidad
-    ctx.set_source_rgba(1, 1, 1, 0.20)
-    ctx.arc(cx, cy, radius, start_angle, start_angle + sweep)
+    # --- Anillo Exterior (7-Day) ---
+    ctx.set_line_width(outer_stroke)
+    # Track
+    ctx.set_source_rgba(1, 1, 1, 0.08)
+    ctx.arc(x, y, outer_radius, 0, full_sweep)
     ctx.stroke()
 
-    # Fill: color proporcional a la utilización
-    fraction = min(utilization / 100.0, 1.0)
-    if fraction > 0:
-        r, g, b = arc_color(utilization)
+    # Progress
+    fraction_7d = min(seven_d_util / 100.0, 1.0)
+    if fraction_7d > 0:
+        r, g, b = arc_color(seven_d_util)
         ctx.set_source_rgb(r, g, b)
-        ctx.arc(cx, cy, radius, start_angle, start_angle + sweep * fraction)
+        ctx.arc(x, y, outer_radius, start_angle, start_angle + full_sweep * fraction_7d)
         ctx.stroke()
+
+    # --- Anillo Interior (5-Hour) ---
+    ctx.set_line_width(inner_stroke)
+    # Track
+    ctx.set_source_rgba(1, 1, 1, 0.12)
+    ctx.arc(x, y, inner_radius, 0, full_sweep)
+    ctx.stroke()
+
+    # Progress
+    fraction_5h = min(five_h_util / 100.0, 1.0)
+    if fraction_5h > 0:
+        r, g, b = arc_color(five_h_util)
+        ctx.set_source_rgb(r, g, b)
+        ctx.arc(x, y, inner_radius, start_angle, start_angle + full_sweep * fraction_5h)
+        ctx.stroke()
+
+
+def render_icon(five_h_util, seven_d_util, size=22):
+    """Renderiza el icono para el tray."""
+    surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
+    ctx = cairo.Context(surface)
+    
+    draw_gauge(ctx, size/2, size/2, size, five_h_util, seven_d_util, is_tray=True)
 
     buf = io.BytesIO()
     surface.write_to_png(buf)
     return buf.getvalue()
 
 
-def write_dynamic_icon(utilization):
-    """Renderiza el icono con la utilización real, lo escribe en assets/icon_current.png
-    y devuelve la ruta.
-    """
+def write_dynamic_icon(five_h_util, seven_d_util):
+    """Escribe el icono actual en assets/icon_current.png."""
+    from .config import ASSETS_DIR
     ASSETS_DIR.mkdir(exist_ok=True)
     path = ASSETS_DIR / "icon_current.png"
-    try:
-        path.write_bytes(render_icon(utilization))
-    except Exception:
-        # Fallback silencioso al icono estático si algo falla
-        from .theme import icon_path_for
-        return icon_path_for(utilization)
+    path.write_bytes(render_icon(five_h_util, seven_d_util))
     return str(path)
 
 
 def generate_icons():
-    """Genera los tres iconos de arco representativos (para compatibilidad)."""
-    ASSETS_DIR.mkdir(exist_ok=True)
-    states = [45, 80, 95]  # OK / WARN / CRIT
-    for name, util in zip(icon_names(), states):
-        (ASSETS_DIR / name).write_bytes(render_icon(util))
+    """Genera iconos iniciales (opcional, para retrocompatibilidad)."""
+    # Usamos 0% por defecto para el primer arranque
+    write_dynamic_icon(0, 0)

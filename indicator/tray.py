@@ -36,8 +36,8 @@ class ClaudeIndicator(Gtk.Application):
         _log.info("Application activated")
 
         self.status_icon = Gtk.StatusIcon()
-        # Icono inicial vacío (0%)
-        self.status_icon.set_from_file(write_dynamic_icon(0.0))
+        # Icono inicial vacío (0/0%)
+        self.status_icon.set_from_file(write_dynamic_icon(0.0, 0.0))
         self.status_icon.set_tooltip_text("Claude — loading...")
         self.status_icon.connect("activate", self._on_left_click)
         self.status_icon.connect("popup-menu", self._on_right_click)
@@ -63,11 +63,16 @@ class ClaudeIndicator(Gtk.Application):
         menu.append(Gtk.SeparatorMenuItem())
 
         item_quit = Gtk.MenuItem(label="Quit")
-        item_quit.connect("activate", lambda _: (self.release(), self.quit()))
+        item_quit.connect("activate", self._on_quit)
         menu.append(item_quit)
 
         menu.show_all()
         return menu
+
+    def _on_quit(self, _):
+        _log.info("Closing application")
+        self.quit()
+        sys.exit(0)
 
     def _on_refresh_now(self, _):
         self.last_updated = None  # bypass 60s cooldown
@@ -109,8 +114,8 @@ class ClaudeIndicator(Gtk.Application):
         seven_d = data.get("seven_day", {}).get("utilization", 0)
         max_util = max(five_h, seven_d)
         
-        # Icono dinámico con la utilización real
-        self.status_icon.set_from_file(write_dynamic_icon(max_util))
+        # Icono dinámico con la utilización real de ambos anillos
+        self.status_icon.set_from_file(write_dynamic_icon(five_h, seven_d))
         self.status_icon.set_tooltip_text(f"Claude Diario:{five_h:.0f}%  Semanal:{seven_d:.0f}%")
 
     def _on_fetch_done(self, data, error):
