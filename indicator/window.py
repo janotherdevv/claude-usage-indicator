@@ -81,6 +81,9 @@ class UsageWindow:
         _apply_theme()
 
         self.window = Gtk.Window()
+        #self.window.set_type_hint(Gdk.WindowTypeHint.UTILITY)
+        self.window.set_skip_taskbar_hint(True)
+        self.window.set_skip_pager_hint(True)
         self.window.set_decorated(False)
         self.window.set_border_width(20)
         self.window.set_resizable(False)
