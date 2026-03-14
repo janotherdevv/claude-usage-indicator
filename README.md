@@ -4,6 +4,7 @@ A lightweight system tray application for Linux (Ubuntu/GNOME) that displays rea
 
 ## Features
 
+*   **Linux Desktop Native:** Specifically designed for Linux environments with GTK 3 support.
 *   **Real-time Monitoring:** Displays Claude API usage for both 5-hour and 7-day windows.
 *   **System Tray Integration:** Circular progress icons that change color based on usage levels (OK, Warning, Critical).
 *   **Detailed Popup:** Click the tray icon to see exact percentages and reset times.
@@ -67,7 +68,11 @@ python3 claude_usage_indicator.py &
 After running `./install.sh`, the application will start automatically every time you log in to your desktop environment.
 
 ### Checking Logs
-If something isn't working, check the log file in the `logs/` directory:
+Logs are stored in the `logs/` directory. The active log file is always `indicator.log`.
+
+At midnight, the application automatically rotates the log file, renaming it to the date it represents (e.g., `2026-03-14.log`) and starting a fresh `indicator.log`.
+
+To monitor real-time activity:
 ```bash
 tail -f logs/indicator.log
 ```
