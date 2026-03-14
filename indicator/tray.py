@@ -28,7 +28,7 @@ class ClaudeIndicator:
         self.status_icon.connect("activate", self._on_left_click)
         self.status_icon.connect("popup-menu", self._on_right_click)
 
-        # El menú se construye una sola vez — nunca cambia
+        # El menú se construye una sola vez
         self._menu = self._build_menu()
 
         # Primer fetch inmediato al arrancar, luego cada 30 minutos
@@ -44,15 +44,7 @@ class ClaudeIndicator:
         return menu
 
     def _start_fetch(self):
-        """Lanza un fetch en background. No hace nada si ya hay uno en curso o los datos son recientes.
-
-        El cooldown de 60 segundos evita saturar la API cuando el usuario abre
-        el popup varias veces seguidas (también protege contra el bug conocido
-        de 429 en el endpoint /oauth/usage).
-        do_fetch corre en un hilo daemon para no bloquear nunca el bucle GTK.
-        Los resultados se devuelven via GLib.idle_add, que encola el callback
-        en el hilo principal de GTK — desde ahí es seguro tocar widgets de la UI.
-        """
+        """Lanza un fetch en background."""
         if self._fetching:
             return
         if self.last_updated and (datetime.now() - self.last_updated).total_seconds() < 60:
@@ -80,47 +72,33 @@ class ClaudeIndicator:
         self.last_updated = datetime.now()
         five_h = data.get("five_hour", {}).get("utilization", 0)
         seven_d = data.get("seven_day", {}).get("utilization", 0)
+        
+        # El icono cambia de color basado en el nivel más crítico (el máximo de ambos)
         self.status_icon.set_from_file(icon_path_for(max(five_h, seven_d)))
-        self.status_icon.set_tooltip_text(f"Claude  5h:{five_h:.0f}%  7d:{seven_d:.0f}%")
+        self.status_icon.set_tooltip_text(f"Claude 5h:{five_h:.0f}%  7d:{seven_d:.0f}%")
 
     def _on_fetch_done(self, data, error):
-        # Siempre se ejecuta en el hilo principal de GTK (programado via GLib.idle_add).
         self._fetching = False
-
         if not error:
             self._apply_usage_data(data)
         elif "429" in error:
-            # Rate limit — se ignora silenciosamente y se mantiene el último estado conocido.
-            # El endpoint /oauth/usage tiene un bug conocido donde devuelve 429
-            # con retry-after: 0, así que mostramos la caché en lugar de un error.
             pass
         else:
             self.last_error = error
 
-        # Actualiza el popup solo si sigue abierto — el usuario puede haberlo
-        # cerrado antes de que terminara el fetch.
         if self.popup_window and self.popup_window.window.get_visible():
             self.popup_window.update(
                 usage_data=self.usage_data,
                 error=self.last_error,
                 updated_at=self.last_updated,
             )
-
-        return False  # Eliminar de la cola de idle de GLib
+        return False
 
     def _on_left_click(self, icon):
-        # Siempre se destruye el popup anterior antes de crear uno nuevo.
-        # Esto libera recursos GTK y detiene el temporizador de animación pulse
-        # de la ventana vieja, que de lo contrario seguiría disparándose en background.
         if self.popup_window:
             self.popup_window.window.destroy()
-
         self.popup_window = UsageWindow()
-        # Se posiciona después de que la ventana se muestre para que get_size() devuelva dimensiones reales.
         GLib.idle_add(self._position_popup)
-
-        # Si los datos en caché tienen menos de 60 segundos, se muestran directamente
-        # sin lanzar otro fetch (evita llamadas innecesarias a la API).
         if self.last_updated and (datetime.now() - self.last_updated).total_seconds() < 60:
             self.popup_window.update(
                 usage_data=self.usage_data,
@@ -138,21 +116,33 @@ class ClaudeIndicator:
         if not ok:
             return False
         w, h = win.get_size()
-        # Usamos la API moderna de Gdk.Display para obtener las dimensiones del monitor
-        # en el que está el icono del systray, en lugar del Gdk.Screen deprecado.
         display = Gdk.Display.get_default()
         monitor = display.get_monitor_at_point(area.x + area.width // 2, area.y + area.height // 2)
         geom = monitor.get_geometry()
-        # Se limita x para que el popup nunca salga por el borde derecho del monitor.
         x = max(geom.x, min(area.x, geom.x + geom.width - w))
-        # Se coloca el popup debajo del icono si está en la mitad superior del
-        # monitor (panel superior típico), o encima si está en la mitad inferior.
         if area.y + area.height // 2 < geom.y + geom.height // 2:
             y = area.y + area.height + 4
         else:
             y = area.y - h - 4
         win.move(x, y)
         return False
+
+    def _on_right_click(self, icon, button, activate_time):
+        self._menu.popup(
+            None, None,
+            Gtk.StatusIcon.position_menu,
+            icon, button, activate_time,
+        )
+
+    def run(self):
+        Gtk.main()
+
+    def _on_right_click(self, icon, button, activate_time):
+        self._menu.popup(
+            None, None,
+            Gtk.StatusIcon.position_menu,
+            icon, button, activate_time,
+        )
 
     def _on_right_click(self, icon, button, activate_time):
         self._menu.popup(

@@ -3,3 +3,7 @@ skills-lock.json
 __pycache__/
 *.log
 assets/
+.agents
+DESIGN-COUNCIL-PRD.md
+GEMINI.md
+CLAUDE.md
