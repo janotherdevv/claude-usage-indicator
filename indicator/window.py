@@ -1,20 +1,77 @@
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GLib
+from gi.repository import Gtk, GLib, Gdk
 
 from datetime import datetime
 
 from .theme import bar_css
 from .api import format_reset_time
 
+_WINDOW_CSS = b"""
+window {
+    background-color: #1A1526;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+}
+label {
+    color: #E8E2F4;
+}
+.dim-label {
+    color: rgba(232, 226, 244, 0.45);
+}
+.section-header {
+    color: rgba(232, 226, 244, 0.55);
+}
+separator {
+    background-color: rgba(255, 255, 255, 0.07);
+    min-height: 1px;
+}
+progressbar trough {
+    background-color: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    min-height: 8px;
+    border: none;
+}
+progressbar trough progress {
+    border-radius: 4px;
+    min-height: 8px;
+}
+menu {
+    background-color: #1A1526;
+    color: #E8E2F4;
+}
+menuitem label {
+    color: #E8E2F4;
+}
+menuitem:hover {
+    background-color: rgba(255, 255, 255, 0.09);
+}
+"""
+
+_css_provider = None
+
+
+def _apply_theme():
+    global _css_provider
+    if _css_provider is not None:
+        return
+    _css_provider = Gtk.CssProvider()
+    _css_provider.load_from_data(_WINDOW_CSS)
+    Gtk.StyleContext.add_provider_for_screen(
+        Gdk.Screen.get_default(),
+        _css_provider,
+        Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+    )
+
 
 class UsageWindow:
     """Ventana popup — se abre en estado de carga y se actualiza al llegar datos."""
 
     def __init__(self):
+        _apply_theme()
+
         self.window = Gtk.Window()
         self.window.set_decorated(False)
-        self.window.set_border_width(16)
+        self.window.set_border_width(20)
         self.window.set_resizable(False)
         self.window.connect("focus-out-event", lambda w, e: w.hide() or True)
         self.window.connect("delete-event", lambda w, e: w.hide() or True)
@@ -23,8 +80,9 @@ class UsageWindow:
         self.window.add(box)
 
         title = Gtk.Label()
-        title.set_markup("<b>Claude Usage</b>")
+        title.set_markup('<span size="small">Claude Usage</span>')
         title.set_halign(Gtk.Align.START)
+        title.get_style_context().add_class("dim-label")
         box.pack_start(title, False, False, 0)
 
         self._five_h = self._make_section("Session (5h)")
@@ -50,9 +108,9 @@ class UsageWindow:
     def _make_section(self, label_text):
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
 
-        header = Gtk.Label()
-        header.set_markup(f"<b>{label_text}</b>")
+        header = Gtk.Label(label=label_text)
         header.set_halign(Gtk.Align.START)
+        header.get_style_context().add_class("section-header")
         vbox.pack_start(header, False, False, 0)
 
         pct = Gtk.Label()
@@ -61,7 +119,7 @@ class UsageWindow:
         vbox.pack_start(pct, False, False, 0)
 
         bar = Gtk.ProgressBar()
-        bar.set_size_request(308, 14)
+        bar.set_size_request(280, -1)
         provider = Gtk.CssProvider()
         provider.load_from_data(bar_css(0))
         bar.get_style_context().add_provider(

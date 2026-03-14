@@ -8,9 +8,9 @@ _ARC_COLORS = [
     (0.753, 0.110, 0.157),  # #C01C28 rojo
 ]
 _BAR_CSS = [
-    b"progressbar > trough > progress { background-color: #26A269; background-image: none; }",
-    b"progressbar > trough > progress { background-color: #E5A50A; background-image: none; }",
-    b"progressbar > trough > progress { background-color: #C01C28; background-image: none; }",
+    b"progressbar > trough > progress { background-color: #26A269; background-image: none; border-radius: 4px; }",
+    b"progressbar > trough > progress { background-color: #E5A50A; background-image: none; border-radius: 4px; }",
+    b"progressbar > trough > progress { background-color: #C01C28; background-image: none; border-radius: 4px; }",
 ]
 _ICON_NAMES = ["icon_ok.png", "icon_warn.png", "icon_crit.png"]
 
