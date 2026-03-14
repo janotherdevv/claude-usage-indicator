@@ -4,8 +4,19 @@ from gi.repository import Gtk, GLib, Gdk
 
 from datetime import datetime
 
-from .theme import bar_css
+from .theme import bar_css, tier
 from .api import format_reset_time
+
+_STATUS = [
+    ("#26A269", "All clear"),
+    ("#E5A50A", "Approaching limit"),
+    ("#C01C28", "Critical usage"),
+]
+
+
+def _status_markup(five_h_util, seven_d_util):
+    color, text = _STATUS[tier(max(five_h_util, seven_d_util))]
+    return f'<span foreground="{color}">{text}</span>'
 
 _WINDOW_CSS = b"""
 window {
@@ -76,21 +87,18 @@ class UsageWindow:
         self.window.connect("focus-out-event", lambda w, e: w.hide() or True)
         self.window.connect("delete-event", lambda w, e: w.hide() or True)
 
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
         self.window.add(box)
 
-        title = Gtk.Label()
-        title.set_markup('<span size="small">Claude Usage</span>')
-        title.set_halign(Gtk.Align.START)
-        title.get_style_context().add_class("dim-label")
-        box.pack_start(title, False, False, 0)
+        self._status_label = Gtk.Label()
+        self._status_label.set_markup('<span>–</span>')
+        self._status_label.set_halign(Gtk.Align.START)
+        box.pack_start(self._status_label, False, False, 0)
 
-        self._five_h = self._make_section("Session (5h)")
+        self._five_h = self._make_section("5h")
         box.pack_start(self._five_h["vbox"], False, False, 0)
 
-        box.pack_start(Gtk.Separator(), False, False, 0)
-
-        self._seven_d = self._make_section("Week (7d)")
+        self._seven_d = self._make_section("7d")
         box.pack_start(self._seven_d["vbox"], False, False, 0)
 
         self._ts_label = Gtk.Label(label="Fetching...")
@@ -106,17 +114,24 @@ class UsageWindow:
         self.window.show_all()
 
     def _make_section(self, label_text):
-        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
         header = Gtk.Label(label=label_text)
         header.set_halign(Gtk.Align.START)
+        header.set_valign(Gtk.Align.CENTER)
         header.get_style_context().add_class("section-header")
-        vbox.pack_start(header, False, False, 0)
+        row.pack_start(header, False, False, 0)
 
         pct = Gtk.Label()
         pct.set_markup('<span size="xx-large" weight="bold">–</span>')
-        pct.set_halign(Gtk.Align.START)
-        vbox.pack_start(pct, False, False, 0)
+        pct.set_halign(Gtk.Align.END)
+        pct.set_valign(Gtk.Align.CENTER)
+        pct.set_hexpand(True)
+        row.pack_start(pct, True, True, 0)
+
+        vbox.pack_start(row, False, False, 0)
 
         bar = Gtk.ProgressBar()
         bar.set_size_request(280, -1)
@@ -145,10 +160,14 @@ class UsageWindow:
         self._pulsing = False
 
         if error:
-            self._ts_label.set_text(f"Error: {error}")
+            self._status_label.set_markup('<span foreground="#E5A50A">Connection error</span>')
+            self._ts_label.set_text(error)
             return
 
         if usage_data:
+            five_h_util = usage_data.get("five_hour", {}).get("utilization", 0)
+            seven_d_util = usage_data.get("seven_day", {}).get("utilization", 0)
+            self._status_label.set_markup(_status_markup(five_h_util, seven_d_util))
             self._fill_section(self._five_h, usage_data.get("five_hour", {}))
             self._fill_section(self._seven_d, usage_data.get("seven_day", {}))
 
@@ -168,7 +187,7 @@ class UsageWindow:
         section["provider"].load_from_data(bar_css(utilization))
         resets_at = data.get("resets_at", "")
         if resets_at:
-            section["reset_lbl"].set_text(f"Resets: {format_reset_time(resets_at)}")
+            section["reset_lbl"].set_text(f"resets {format_reset_time(resets_at)}")
 
     def show(self):
         self.window.present()
