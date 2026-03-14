@@ -26,6 +26,7 @@ Comment=Shows Claude API usage in the system tray
 Categories=Utility;
 StartupNotify=false
 X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Delay=5
 EOF
 
 echo "Autostart entry created: $DESKTOP_FILE"

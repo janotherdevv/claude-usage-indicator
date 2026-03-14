@@ -111,8 +111,6 @@ class UsageWindow:
         self._pulsing = True
         GLib.timeout_add(80, self._do_pulse)
 
-        self.window.show_all()
-
     def _make_section(self, label_text):
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
 

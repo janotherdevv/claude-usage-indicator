@@ -193,20 +193,34 @@ class ClaudeIndicator(Gtk.Application):
     def _position_popup(self):
         if not self.popup_window:
             return False
+            
         win = self.popup_window.window
         ok, _screen, area, _ = self.status_icon.get_geometry()
+        
         if not ok:
+            # Si el panel aún no está listo (típico al arrancar la sesión), reintentamos en un momento.
+            GLib.timeout_add(200, self._position_popup)
             return False
-        w, h = win.get_size()
+            
+        # Calculamos el tamaño preferido antes de mostrarla para saber cuánto mide
+        # (win.get_size() devolvería 1x1 si aún no es visible)
+        requisition, _ = win.get_preferred_size()
+        w, h = requisition.width, requisition.height
+        
         display = Gdk.Display.get_default()
         monitor = display.get_monitor_at_point(area.x + area.width // 2, area.y + area.height // 2)
         geom = monitor.get_geometry()
+        
         x = max(geom.x, min(area.x, geom.x + geom.width - w))
+        
         if area.y + area.height // 2 < geom.y + geom.height // 2:
             y = area.y + area.height + 4
         else:
             y = area.y - h - 4
+            
         win.move(x, y)
+        win.show_all()
+        win.present()
         return False
 
     def _on_right_click(self, icon, button, activate_time):
