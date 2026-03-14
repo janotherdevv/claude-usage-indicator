@@ -7,37 +7,33 @@ from .config import ASSETS_DIR
 from .theme import arc_color, icon_names
 
 
-def _render_wide_bar_icon(utilization, width=44, height=22):
-    """Renderiza un icono ancho con una única barra horizontal panorámica.
+def _render_arc_icon(utilization, size=22):
+    """Renderiza un icono cuadrado con arco de progreso de 270°.
     Devuelve bytes PNG.
     """
-    surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
+    surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
     ctx = cairo.Context(surface)
     ctx.set_line_cap(cairo.LINE_CAP_ROUND)
 
-    # Margen de 2px a los lados, barra de 10px de alto centrada verticalmente
-    bar_h = 10.0
-    x_start = 2
-    x_end = width - 2
-    y_center = height / 2
-    bar_width = x_end - x_start
+    cx, cy = size / 2, size / 2
+    radius = size * 0.36       # ~8px en 22px
+    stroke = size * 0.114      # ~2.5px en 22px
+    start_angle = math.pi * 0.75   # 135° — esquina inferior izquierda
+    sweep = math.pi * 1.5          # 270°
 
-    ctx.set_line_width(bar_h)
+    ctx.set_line_width(stroke)
 
-    # Track: Fondo tenue (blanco al 15% opacidad)
-    ctx.set_source_rgba(1, 1, 1, 0.15)
-    ctx.move_to(x_start + bar_h/2, y_center)
-    ctx.line_to(x_end - bar_h/2, y_center)
+    # Track: blanco al 20% de opacidad
+    ctx.set_source_rgba(1, 1, 1, 0.20)
+    ctx.arc(cx, cy, radius, start_angle, start_angle + sweep)
     ctx.stroke()
 
-    # Fill: Color basado en utilización
+    # Fill: color proporcional a la utilización
     fraction = min(utilization / 100.0, 1.0)
     if fraction > 0:
         r, g, b = arc_color(utilization)
         ctx.set_source_rgb(r, g, b)
-        ctx.move_to(x_start + bar_h/2, y_center)
-        # El fill crece proporcionalmente dentro del track de 40px
-        ctx.line_to(x_start + bar_h/2 + (bar_width - bar_h) * fraction, y_center)
+        ctx.arc(cx, cy, radius, start_angle, start_angle + sweep * fraction)
         ctx.stroke()
 
     buf = io.BytesIO()
@@ -46,9 +42,8 @@ def _render_wide_bar_icon(utilization, width=44, height=22):
 
 
 def generate_icons():
-    """Genera los tres iconos de barra panorámica representativos.
-    """
+    """Genera los tres iconos de arco representativos."""
     ASSETS_DIR.mkdir(exist_ok=True)
     states = [45, 80, 95]  # OK / WARN / CRIT
     for name, util in zip(icon_names(), states):
-        (ASSETS_DIR / name).write_bytes(_render_wide_bar_icon(util))
+        (ASSETS_DIR / name).write_bytes(_render_arc_icon(util))
