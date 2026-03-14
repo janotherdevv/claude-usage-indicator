@@ -17,7 +17,7 @@ def read_token():
         oauth = creds["claudeAiOauth"]
         expires_at_ms = oauth.get("expiresAt", 0)
         if expires_at_ms and time.time() * 1000 > expires_at_ms:
-            return None, "Token expired"
+            return None, "Token expired, reopen Claude Code :)"
         return oauth["accessToken"], None
     except FileNotFoundError:
         return None, f"Credentials not found: {CREDENTIALS_PATH}"

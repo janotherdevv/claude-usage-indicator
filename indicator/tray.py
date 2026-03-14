@@ -1,3 +1,4 @@
+import logging
 import threading
 import warnings
 import sys
@@ -11,7 +12,7 @@ from gi.repository import Gtk, GLib, Gdk, Gio
 # pero sigue siendo la forma estándar en muchos escritorios Linux.
 warnings.filterwarnings("ignore", ".*StatusIcon.*", DeprecationWarning)
 
-from .config import POLL_INTERVAL
+from .config import POLL_INTERVAL, _log
 from .theme import tier
 from .icons import write_dynamic_icon
 from .api import read_token, fetch_usage, format_reset_time
@@ -27,10 +28,12 @@ class ClaudeIndicator(Gtk.Application):
         self._fetching = False
         self.popup_window = None
         self._last_notified_tier = None
+        _log.debug("ClaudeIndicator initialized")
 
     def do_activate(self):
         # Mantenemos la aplicación viva aunque no haya ventanas abiertas
         self.hold()
+        _log.info("Application activated")
 
         self.status_icon = Gtk.StatusIcon()
         # Icono inicial vacío (0%)

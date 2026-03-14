@@ -67,9 +67,9 @@ python3 claude_usage_indicator.py &
 After running `./install.sh`, the application will start automatically every time you log in to your desktop environment.
 
 ### Checking Logs
-If something isn't working, check the log file in the project directory:
+If something isn't working, check the log file in the `logs/` directory:
 ```bash
-tail -f claude_usage_indicator.log
+tail -f logs/indicator.log
 ```
 
 ## Project Structure

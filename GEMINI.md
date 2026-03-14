@@ -47,7 +47,7 @@ This creates a `.desktop` entry in `~/.config/autostart/`.
 
 ## Development Conventions
 
-*   **Logging:** All logs are written to `claude_usage_indicator.log` in the project root and to `stdout`.
+*   **Logging:** Logs are written to `logs/indicator.log` (with daily rotation) and to `stdout`.
 *   **API Polling:** Usage data is polled every 30 minutes (`POLL_INTERVAL`). A 60-second cooldown is enforced on manual refreshes (clicking the tray icon).
 *   **UI Safety:** Always use `GLib.idle_add` when updating GTK widgets from background threads or callbacks to ensure thread safety.
 *   **Icon Rendering:** Icons are generated once at startup in the `assets/` directory. They use representative values (45%, 80%, 95%) to indicate the current tier, while exact percentages are shown in tooltips and the popup window.
