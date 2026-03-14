@@ -1,4 +1,5 @@
 import logging
+import logging.handlers
 from datetime import datetime
 from pathlib import Path
 
@@ -14,20 +15,32 @@ ASSETS_DIR = PROJECT_ROOT / "assets"
 LOG_DIR = PROJECT_ROOT / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 
-# Archivo con la fecha del día: 2026-03-14.log
-LOG_PATH = LOG_DIR / f"{datetime.now().strftime('%Y-%m-%d')}.log"
+# El archivo activo será indicator.log
+LOG_PATH = LOG_DIR / "indicator.log"
 
-# Logger compartido — otros módulos lo obtienen con logging.getLogger("claude_usage")
 _log = logging.getLogger("claude_usage")
 _log.setLevel(logging.INFO)
 
-# Handler estándar para el archivo (se crea uno nuevo si cambia el día al iniciar)
-file_handler = logging.FileHandler(LOG_PATH, encoding="utf-8")
+# Handler que rota a medianoche
+file_handler = logging.handlers.TimedRotatingFileHandler(
+    LOG_PATH, when="midnight", interval=1, backupCount=30, encoding="utf-8"
+)
+
+# Función para que al rotar el nombre sea exactamente la fecha: YYYY-MM-DD.log
+def daily_namer(default_name):
+    # default_name suele ser indicator.log.YYYY-MM-DD
+    parts = default_name.split('.')
+    if len(parts) >= 3:
+        # Extraemos la fecha (última parte) y le ponemos .log
+        return str(LOG_DIR / f"{parts[-1]}.log")
+    return default_name
+
+file_handler.namer = daily_namer
 stream_handler = logging.StreamHandler()
 
 # Formato mejorado: [2024-03-14 10:00:00] [INFO   ] Mensaje
 formatter = logging.Formatter(
-    fmt="[%(asctime)s] [%(levelname)s] %(message)s",
+    fmt="[%(asctime)s] [%(levelname)-8s] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S"
 )
 
