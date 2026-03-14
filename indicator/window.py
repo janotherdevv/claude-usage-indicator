@@ -20,31 +20,32 @@ def _status_markup(five_h_util, seven_d_util):
 
 _WINDOW_CSS = b"""
 window {
-    background-color: #1A1526;
-    border: 1px solid rgba(255, 255, 255, 0.09);
+    background-color: rgba(26, 21, 38, 0.97);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
 }
 label {
     color: #E8E2F4;
+    font-family: "Inter", "Cantarell", "Sans";
 }
 .dim-label {
-    color: rgba(232, 226, 244, 0.45);
+    color: rgba(232, 226, 244, 0.4);
+    font-size: 0.9em;
 }
 .section-header {
-    color: rgba(232, 226, 244, 0.55);
-}
-separator {
-    background-color: rgba(255, 255, 255, 0.07);
-    min-height: 1px;
+    color: rgba(232, 226, 244, 0.5);
+    font-weight: bold;
+    font-size: 0.85em;
 }
 progressbar trough {
-    background-color: rgba(255, 255, 255, 0.08);
-    border-radius: 4px;
-    min-height: 8px;
+    background-color: rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    min-height: 10px;
     border: none;
 }
 progressbar trough progress {
-    border-radius: 4px;
-    min-height: 8px;
+    border-radius: 6px;
+    min-height: 10px;
 }
 menu {
     background-color: #1A1526;
@@ -61,8 +62,15 @@ menuitem:hover {
 _css_provider = None
 
 
-def _apply_theme():
+def _apply_theme(window):
     global _css_provider
+    
+    # Habilitar transparencia RGBA
+    screen = window.get_screen()
+    visual = screen.get_rgba_visual()
+    if visual:
+        window.set_visual(visual)
+    
     if _css_provider is not None:
         return
     _css_provider = Gtk.CssProvider()
@@ -78,19 +86,19 @@ class UsageWindow:
     """Ventana popup — se abre en estado de carga y se actualiza al llegar datos."""
 
     def __init__(self):
-        _apply_theme()
-
         self.window = Gtk.Window()
-        #self.window.set_type_hint(Gdk.WindowTypeHint.UTILITY)
+        _apply_theme(self.window)
+
+        # self.window.set_type_hint(Gdk.WindowTypeHint.UTILITY)
         self.window.set_skip_taskbar_hint(True)
         self.window.set_skip_pager_hint(True)
         self.window.set_decorated(False)
-        self.window.set_border_width(20)
+        self.window.set_border_width(24)
         self.window.set_resizable(False)
         self.window.connect("focus-out-event", lambda w, e: w.hide() or True)
         self.window.connect("delete-event", lambda w, e: w.hide() or True)
 
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
         self.window.add(box)
 
         self._status_label = Gtk.Label()
@@ -98,10 +106,10 @@ class UsageWindow:
         self._status_label.set_halign(Gtk.Align.START)
         box.pack_start(self._status_label, False, False, 0)
 
-        self._five_h = self._make_section("5h")
+        self._five_h = self._make_section("Diario")
         box.pack_start(self._five_h["vbox"], False, False, 0)
 
-        self._seven_d = self._make_section("7d")
+        self._seven_d = self._make_section("Semanal")
         box.pack_start(self._seven_d["vbox"], False, False, 0)
 
         self._ts_label = Gtk.Label(label="Fetching...")

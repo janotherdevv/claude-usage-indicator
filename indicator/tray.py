@@ -111,7 +111,7 @@ class ClaudeIndicator(Gtk.Application):
         
         # Icono dinámico con la utilización real
         self.status_icon.set_from_file(write_dynamic_icon(max_util))
-        self.status_icon.set_tooltip_text(f"Claude 5h:{five_h:.0f}%  7d:{seven_d:.0f}%")
+        self.status_icon.set_tooltip_text(f"Claude Diario:{five_h:.0f}%  Semanal:{seven_d:.0f}%")
 
     def _on_fetch_done(self, data, error):
         self._fetching = False
