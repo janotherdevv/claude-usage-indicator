@@ -235,3 +235,16 @@ class ClaudeIndicator(Gtk.Application):
 
     def run(self):
         super().run(sys.argv)
+
+
+def main():
+    # Asegurar que los iconos básicos existen en la cache
+    from .icons import generate_icons
+    generate_icons()
+    
+    app = ClaudeIndicator()
+    app.run()
+
+
+if __name__ == "__main__":
+    main()

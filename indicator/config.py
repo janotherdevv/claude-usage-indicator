@@ -3,17 +3,24 @@ import logging.handlers
 from datetime import datetime
 from pathlib import Path
 
-# Raíz del proyecto: indicator/config.py → indicator/ → raíz
+# Raíz del proyecto para recursos estáticos (si hubiera)
 PROJECT_ROOT = Path(__file__).parent.parent
+
+# Directorios de datos del usuario
+USER_DATA_DIR = Path.home() / ".local" / "share" / "claude-usage-indicator"
+USER_CACHE_DIR = Path.home() / ".cache" / "claude-usage-indicator"
 
 CREDENTIALS_PATH = Path.home() / ".claude" / ".credentials.json"
 API_URL = "https://api.anthropic.com/api/oauth/usage"
 POLL_INTERVAL = 1800  # segundos (30 minutos)
-ASSETS_DIR = PROJECT_ROOT / "assets"
+
+# Assets dinámicos (iconos generados)
+ASSETS_DIR = USER_CACHE_DIR / "assets"
+ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Configuración de Logs
-LOG_DIR = PROJECT_ROOT / "logs"
-LOG_DIR.mkdir(exist_ok=True)
+LOG_DIR = USER_DATA_DIR / "logs"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 # El archivo activo será indicator.log
 LOG_PATH = LOG_DIR / "indicator.log"

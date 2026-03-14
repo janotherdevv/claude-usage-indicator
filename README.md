@@ -50,7 +50,7 @@ Ensure the file exists with the following structure:
     ```
 
 2.  **Run the installation script:**
-    This script sets up the autostart entry in `~/.config/autostart/`.
+    This script installs the Python package and sets up the autostart entry in `~/.config/autostart/`.
     ```bash
     chmod +x install.sh
     ./install.sh
@@ -61,20 +61,20 @@ Ensure the file exists with the following structure:
 ### Starting Manually
 If you want to run it without restarting your session:
 ```bash
-python3 claude_usage_indicator.py &
+claude-usage-indicator &
 ```
 
 ### Automatic Start
 After running `./install.sh`, the application will start automatically every time you log in to your desktop environment.
 
 ### Checking Logs
-Logs are stored in the `logs/` directory. The active log file is always `indicator.log`.
+Logs are stored in `~/.local/share/claude-usage-indicator/logs/`. The active log file is always `indicator.log`.
 
 At midnight, the application automatically rotates the log file, renaming it to the date it represents (e.g., `2026-03-14.log`) and starting a fresh `indicator.log`.
 
 To monitor real-time activity:
 ```bash
-tail -f logs/indicator.log
+tail -f ~/.local/share/claude-usage-indicator/logs/indicator.log
 ```
 
 ## Project Structure

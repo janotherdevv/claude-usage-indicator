@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "claude-usage-indicator"
+version = "0.1.0"
+description = "Shows Claude API usage in the system tray"
+readme = "README.md"
+requires-python = ">=3.7"
+license = "MIT"
+authors = [
+    { name = "Janotherdev" }
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+]
+dependencies = [
+    "PyGObject",
+    "pycairo",
+]
+
+[project.scripts]
+claude-usage-indicator = "indicator.tray:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["indicator"]

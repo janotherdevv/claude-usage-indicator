@@ -8,10 +8,18 @@ DESKTOP_FILE="$AUTOSTART_DIR/claude-usage-indicator.desktop"
 echo "Installing Claude Usage Indicator..."
 
 # Check dependencies
-if ! python3 -c "import gi; gi.require_version('AppIndicator3', '0.1'); from gi.repository import AppIndicator3" 2>/dev/null; then
+if ! python3 -c "import gi; gi.require_version('AppIndicator3', '0.1'); from gi.repository import AppIndicator3" 2>/dev/null || ! python3 -c "import cairo" 2>/dev/null; then
     echo "Missing dependencies. Installing..."
-    sudo apt install -y python3-gi gir1.2-appindicator3-0.1 gir1.2-gtk-3.0
+    sudo apt install -y python3-gi gir1.2-appindicator3-0.1 gir1.2-gtk-3.0 python3-cairo
 fi
+
+# Install the package in editable mode or normally
+echo "Installing Python package..."
+python3 -m pip install -e .
+
+# Generate icons once so the desktop file has something to show
+echo "Generating initial icons..."
+python3 -c "from indicator.icons import generate_icons; generate_icons()"
 
 chmod +x "$SCRIPT_DIR/claude_usage_indicator.py"
 
@@ -20,8 +28,8 @@ cat > "$DESKTOP_FILE" <<EOF
 [Desktop Entry]
 Type=Application
 Name=Claude Usage Indicator
-Exec=python3 $SCRIPT_DIR/claude_usage_indicator.py
-Icon=$SCRIPT_DIR/assets/icon_ok.png
+Exec=claude-usage-indicator
+Icon=$HOME/.cache/claude-usage-indicator/assets/icon_ok.png
 Comment=Shows Claude API usage in the system tray
 Categories=Utility;
 StartupNotify=false
@@ -31,5 +39,5 @@ EOF
 
 echo "Autostart entry created: $DESKTOP_FILE"
 echo ""
-echo "To start now:  python3 $SCRIPT_DIR/claude_usage_indicator.py &"
+echo "To start now:  claude-usage-indicator &"
 echo "It will auto-start on next login."
