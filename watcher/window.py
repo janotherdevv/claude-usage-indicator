@@ -6,7 +6,7 @@ import cairo
 import math
 from datetime import datetime
 
-from .theme import tier, get_classic_bar_css, utilization_color
+from .theme import tier, get_classic_bar_css, utilization_color, get_palette
 from .api import format_reset_time
 from .icons import draw_obsidian_gauge
 from .config import get_theme
@@ -208,10 +208,37 @@ class ObsidianWindow(BaseWindow):
         ctx.set_font_size(size * 0.18)
 
         text = f"{display_util:.0f}%"
+        
+        # Factor de transición suave para el 90% -> 100%
+        # Esto elimina el salto brusco de tamaño y color
+        t_factor = max(0.0, min(1.0, (display_util - 90) / 10.0))
+        
+        # Tamaño de fuente interpolado (0.18 -> 0.155)
+        font_size_mult = 0.18 - (t_factor * 0.025)
+        ctx.set_font_size(size * font_size_mult)
+        
         extents = ctx.text_extents(text)
+        tx = cx - extents.width/2 - extents.x_bearing
+        ty = cy + extents.height/2
 
-        ctx.set_source_rgba(r, g, b, 0.95)
-        ctx.move_to(cx - extents.width/2 - extents.x_bearing, cy + extents.height/2)
+        # Propuesta 2: Halo Ultra-Fino (Invisible/Ethereal)
+        # La opacidad del halo aumenta con el factor de transición
+        bg_r, bg_g, bg_b = get_palette()["bg"]
+        ctx.set_source_rgba(bg_r, bg_g, bg_b, 0.4 + (t_factor * 0.25))
+        ctx.set_line_width(size * 0.012)
+        ctx.move_to(tx, ty)
+        ctx.text_path(text)
+        ctx.stroke()
+
+        # Color de texto interpolado (Armonía profunda)
+        # Transicionamos de (r, g, b) brillante a (r*0.1, g*0.1, b*0.1) casi negro
+        text_r = r * (1.0 - (t_factor * 0.9))
+        text_g = g * (1.0 - (t_factor * 0.9))
+        text_b = b * (1.0 - (t_factor * 0.9))
+        
+        ctx.set_source_rgba(text_r, text_g, text_b, 0.95 + (t_factor * 0.03))
+
+        ctx.move_to(tx, ty)
         ctx.show_text(text)
 
     def _tick(self):
