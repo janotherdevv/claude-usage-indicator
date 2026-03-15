@@ -6,10 +6,10 @@ import cairo
 import math
 from datetime import datetime
 
-from .theme import get_palette, tier, get_classic_bar_css, utilization_color
+from .theme import tier, get_classic_bar_css, utilization_color
 from .api import format_reset_time
 from .icons import draw_obsidian_gauge
-from .config import get_settings
+from .config import get_theme
 
 def _hex(rgb):
     return f"#{int(rgb[0]*255):02x}{int(rgb[1]*255):02x}{int(rgb[2]*255):02x}"
@@ -80,11 +80,16 @@ def _set_screen_provider(provider):
         )
         _current_screen_provider = provider
 
-class ObsidianWindow:
+class BaseWindow:
+    """Configuración base común a todos los diseños de ventana popup."""
     def __init__(self):
         self.window = Gtk.Window()
+        # RGBA visual necesario para compositing (transparencia / border-radius)
+        screen = self.window.get_screen()
+        visual = screen.get_rgba_visual()
+        if visual:
+            self.window.set_visual(visual)
         self._apply_theme(self.window)
-
         self.window.set_skip_taskbar_hint(True)
         self.window.set_skip_pager_hint(True)
         self.window.set_decorated(False)
@@ -92,6 +97,18 @@ class ObsidianWindow:
         self.window.set_resizable(False)
         self.window.connect("focus-out-event", lambda w, e: w.hide() or True)
         self.window.connect("delete-event", lambda w, e: w.hide() or True)
+
+    def _apply_theme(self, window):
+        pass
+
+    def show(self):
+        self.window.show_all()
+        self.window.present()
+
+
+class ObsidianWindow(BaseWindow):
+    def __init__(self):
+        super().__init__()
 
         self.five_h_util = 0.0
         self.seven_d_util = 0.0
@@ -133,11 +150,6 @@ class ObsidianWindow:
 
     def _apply_theme(self, window):
         global _obsidian_css_provider
-        screen = window.get_screen()
-        visual = screen.get_rgba_visual()
-        if visual:
-            window.set_visual(visual)
-
         if _obsidian_css_provider is None:
             _obsidian_css_provider = Gtk.CssProvider()
             _obsidian_css_provider.load_from_data(_OBSIDIAN_CSS)
@@ -282,10 +294,6 @@ class ObsidianWindow:
             res_7d = usage_data.get("seven_day", {}).get("resets_at", "")
             self._m_weekly["reset"].set_text(f"RESETS {format_reset_time(res_7d).upper()}" if res_7d else "")
 
-    def show(self):
-        self.window.show_all()
-        self.window.present()
-
 # --- Classic Design ---
 
 _CLASSIC_CSS = b"""
@@ -331,18 +339,9 @@ _CLASSIC_STATUS = [
     ("#C01C28", "Critical usage"),
 ]
 
-class ClassicWindow:
+class ClassicWindow(BaseWindow):
     def __init__(self):
-        self.window = Gtk.Window()
-        self._apply_theme(self.window)
-
-        self.window.set_skip_taskbar_hint(True)
-        self.window.set_skip_pager_hint(True)
-        self.window.set_decorated(False)
-        self.window.set_border_width(20)
-        self.window.set_resizable(False)
-        self.window.connect("focus-out-event", lambda w, e: w.hide() or True)
-        self.window.connect("delete-event", lambda w, e: w.hide() or True)
+        super().__init__()
 
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
         self.window.add(box)
@@ -423,7 +422,7 @@ class ClassicWindow:
             five_h_util = usage_data.get("five_hour", {}).get("utilization", 0)
             seven_d_util = usage_data.get("seven_day", {}).get("utilization", 0)
 
-            color, text = _CLASSIC_STATUS[tier(max(five_h_util, seven_d_util))]
+            color, text = _CLASSIC_STATUS[min(tier(max(five_h_util, seven_d_util)), 2)]
             self._status_label.set_markup(f'<span foreground="{color}">{text}</span>')
 
             self._fill_section(self._five_h, usage_data.get("five_hour", {}))
@@ -445,14 +444,10 @@ class ClassicWindow:
         if resets_at:
             section["reset_lbl"].set_text(f"resets {format_reset_time(resets_at)}")
 
-    def show(self):
-        self.window.show_all()
-        self.window.present()
-
 # --- Factory ---
 
 def UsageWindow():
-    theme = get_settings().get("theme", "obsidian")
+    theme = get_theme()
     if theme == "classic":
         return ClassicWindow()
     return ObsidianWindow()

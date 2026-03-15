@@ -3,8 +3,8 @@ import math
 import cairo
 from gi.repository import GdkPixbuf, Gdk
 
-from .theme import get_palette, tier, utilization_color
-from .config import get_settings
+from .theme import tier, utilization_color, classic_tier_color
+from .config import get_theme
 
 
 def render_pixbuf(five_h_util, seven_d_util, size=22):
@@ -20,8 +20,7 @@ def render_pixbuf(five_h_util, seven_d_util, size=22):
 
 
 def draw_gauge(ctx, x, y, size, five_h_util, seven_d_util, is_tray=False):
-    theme = get_settings().get("theme", "obsidian")
-    if theme == "classic":
+    if get_theme() == "classic":
         draw_classic_gauge(ctx, x, y, size, max(five_h_util, seven_d_util))
     else:
         draw_obsidian_gauge(ctx, x, y, size, five_h_util, seven_d_util, is_tray)
@@ -84,7 +83,6 @@ def draw_obsidian_gauge(ctx, x, y, size, five_h_util, seven_d_util, is_tray=Fals
 def draw_classic_gauge(ctx, cx, cy, size, utilization):
     """Renderiza un icono cuadrado con arco de progreso de 270° (Estilo Clásico)."""
     ctx.set_line_cap(cairo.LINE_CAP_ROUND)
-    palette = get_palette()
 
     radius = size * 0.36
     stroke = size * 0.114
@@ -101,7 +99,7 @@ def draw_classic_gauge(ctx, cx, cy, size, utilization):
     # Fill: color proporcional a la utilización
     fraction = min(utilization / 100.0, 1.0)
     if fraction > 0:
-        r, g, b = palette[tier(utilization)]
+        r, g, b = classic_tier_color(utilization)
         ctx.set_source_rgb(r, g, b)
         ctx.arc(cx, cy, radius, start_angle, start_angle + sweep * fraction)
         ctx.stroke()

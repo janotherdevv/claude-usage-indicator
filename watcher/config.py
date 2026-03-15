@@ -32,6 +32,10 @@ def get_settings():
     except:
         return defaults
 
+def get_theme():
+    """Devuelve el nombre del tema activo ('obsidian' | 'classic')."""
+    return get_settings().get("theme", "obsidian")
+
 def update_setting(key, value):
     import json
     settings = get_settings()

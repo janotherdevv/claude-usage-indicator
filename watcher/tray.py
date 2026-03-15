@@ -12,7 +12,7 @@ from gi.repository import Gtk, GLib, Gdk, Gio
 # pero sigue siendo la forma estándar en muchos escritorios Linux.
 warnings.filterwarnings("ignore", ".*StatusIcon.*", DeprecationWarning)
 
-from .config import POLL_INTERVAL, _log, get_settings, update_setting
+from .config import POLL_INTERVAL, _log, get_theme, update_setting
 from .theme import tier
 from .icons import render_pixbuf
 from .api import read_token, fetch_usage, format_reset_time
@@ -61,7 +61,7 @@ class ClaudeWatcher(Gtk.Application):
         item_design = Gtk.MenuItem(label="Design")
         item_design.set_submenu(design_menu)
 
-        current_theme = get_settings().get("theme", "obsidian")
+        current_theme = get_theme()
 
         item_obsidian = Gtk.RadioMenuItem(label="Obsidian (Concentric)")
         item_obsidian.set_active(current_theme == "obsidian")
@@ -92,7 +92,7 @@ class ClaudeWatcher(Gtk.Application):
         if not widget.get_active():
             return
         
-        if get_settings().get("theme") == theme_name:
+        if get_theme() == theme_name:
             return
 
         _log.info(f"Changing theme to {theme_name}")

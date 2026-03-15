@@ -1,4 +1,4 @@
-from .config import ASSETS_DIR, get_settings
+from .config import ASSETS_DIR, get_theme
 
 # Obsidian Palette: colores fijos para fondos y texto; los arcos usan utilization_color()
 _PALETTE_OBSIDIAN = {
@@ -53,10 +53,14 @@ def tier(utilization):
 
 
 def get_palette():
-    theme = get_settings().get("theme", "obsidian")
-    if theme == "classic":
+    if get_theme() == "classic":
         return _PALETTE_CLASSIC
     return _PALETTE_OBSIDIAN
+
+
+def classic_tier_color(utilization):
+    """Color RGB del arco clásico para la utilización dada (clampeado a los 3 niveles del tema Classic)."""
+    return _PALETTE_CLASSIC[min(tier(utilization), 2)]
 
 
 def get_classic_bar_css(utilization):
