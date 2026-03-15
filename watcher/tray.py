@@ -61,10 +61,21 @@ class ClaudeWatcher(Gtk.Application):
         item_design = Gtk.MenuItem(label="Design")
         item_design.set_submenu(design_menu)
 
-        # Desactivar flechas de scroll en el submenú (solo 2 opciones, nunca hacen falta)
-        _css = b"menu > arrow { min-height: 0; min-width: 0; opacity: 0; }"
+        # Desactivar flechas de scroll en el submenú (solo 2 opciones, nunca hacen falta).
+        # Se silencia stderr durante load_from_data para evitar el warning por la propiedad
+        # deprecated -GtkMenu-double-arrows, que sigue siendo la única forma fiable de suprimirlas.
+        import os as _os
+        _css = b"menu { -GtkMenu-double-arrows: 0; } menu > arrow { min-height: 0; min-width: 0; opacity: 0; }"
         _prov = Gtk.CssProvider()
-        _prov.load_from_data(_css)
+        _devnull = _os.open(_os.devnull, _os.O_WRONLY)
+        _saved = _os.dup(2)
+        _os.dup2(_devnull, 2)
+        try:
+            _prov.load_from_data(_css)
+        finally:
+            _os.dup2(_saved, 2)
+            _os.close(_saved)
+            _os.close(_devnull)
         design_menu.get_style_context().add_provider(_prov, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         current_theme = get_theme()
