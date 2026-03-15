@@ -2,31 +2,30 @@
 
 A lightweight system tray application for Linux (Ubuntu/GNOME) that displays real-time Claude API usage and token utilization.
 
-![Window](claude-code-usage-window.png)
+| Classic | Obsidian |
+|---------|----------|
+| ![Classic design](readme/img/classic-design-ok.png) | ![Obsidian design](readme/img/obsidian-design-ok.png) |
 
 ## Features
 
-*   **Linux Desktop Native:** Specifically designed for Linux environments with GTK 3 and AppIndicator support.
-*   **Real-time Monitoring:** Displays Claude API usage for both 5-hour and 7-day windows.
-*   **Dynamic Tray Icon:** Circular progress arcs rendered in real-time that change color based on usage (OK < 70%, Warning 70-90%, Critical >= 90%).
-*   **Detailed Popup:** Click the tray icon to see exact percentages, reset times, and any API errors.
-*   **Resource Efficient:** Written in Python using Cairo for lightweight vector rendering.
-*   **Standardized Paths:** Follows XDG standards for logs (`~/.local/share`) and cache (`~/.cache`).
+- **Two themes:** Obsidian (animated concentric rings with glow) and Classic (progress bars). Switch between them via the right-click context menu — preference is saved across sessions.
+- **Real-time monitoring:** Displays Claude API usage for both the 5-hour and 7-day windows.
+- **Progressive colors:** Tray icon and popup colors interpolate continuously from green (0%) → amber (70%) → red (95%) → purple (100%).
+- **Dynamic tray icon:** Concentric arcs rendered in memory via Cairo — no disk I/O at runtime.
+- **Desktop notifications:** Alerts when usage crosses tier thresholds.
+- **Resource efficient:** Pure Python using only stdlib, GTK 3 bindings, and pycairo.
 
 ## Prerequisites
 
-The application requires Python 3 and GTK 3 introspection libraries. On Ubuntu/Debian, install them using:
+Requires Python 3 and GTK 3 introspection libraries. On Ubuntu/Debian:
 
 ```bash
-sudo apt update
-sudo apt install python3-gi gir1.2-gtk-3.0 python3-cairo gir1.2-appindicator3-0.1
+sudo apt install python3-gi gir1.2-gtk-3.0 python3-cairo
 ```
 
 ## Configuration
 
-The application reads your Claude API credentials from `~/.claude/.credentials.json`. 
-
-Ensure the file exists with the following structure:
+The application reads your Claude credentials from `~/.claude/.credentials.json`:
 
 ```json
 {
@@ -37,59 +36,64 @@ Ensure the file exists with the following structure:
 }
 ```
 
-*Note: `expiresAt` is optional but recommended for token validity checks (timestamp in milliseconds).*
+`expiresAt` is optional but recommended for token validity checks (timestamp in milliseconds).
 
 ## Installation
 
-The easiest way to install and configure the application is using the provided installation script:
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/yourusername/claude-usage-watcher.git
+   cd claude-usage-watcher
+   ```
 
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/yourusername/claude-usage-watcher.git
-    cd claude-usage-watcher
-    ```
+2. **Run the installation script:**
+   ```bash
+   chmod +x install.sh
+   ./install.sh
+   ```
 
-2.  **Run the installation script:**
-    This script installs the Python package, ensures system dependencies are met, and sets up the autostart entry.
-    ```bash
-    chmod +x install.sh
-    ./install.sh
-    ```
+   This installs the Python package and creates an autostart entry in `~/.config/autostart/` so the app launches automatically on login.
 
 ## Usage
 
-### Command Line
-Once installed, you can start the watcher from your terminal:
+### Running manually
+
+```bash
+python3 claude_usage_watcher.py &
+```
+
+Or, if installed via pip:
+
 ```bash
 claude-usage-watcher &
 ```
 
-### Automatic Start
-The installation script creates a `.desktop` entry in `~/.config/autostart/`, so the application will start automatically every time you log in to your desktop environment.
+### Tray interaction
 
-### Monitoring Logs
-Logs are managed via standard RotatingFileHandlers. You can monitor activity with:
+- **Left-click** the tray icon to open the usage popup.
+- **Right-click** to open the context menu (refresh, switch theme, quit).
+
+### Logs
+
 ```bash
 tail -f ~/.local/share/claude-usage-watcher/logs/watcher.log
 ```
 
-## Development & Structure
+Daily rotation at midnight, 30-day retention.
 
-The project is structured as a standard Python package using `hatchling` as the build system.
+## Project structure
 
-### Key Files
-*   `pyproject.toml`: Package metadata and entry points.
-*   `watcher/`: Main package containing the application logic.
-    *   `tray.py`: Application entry point and tray logic.
-    *   `api.py`: Anthropic API integration.
-    *   `icons.py`: Dynamic Cairo-based icon rendering.
-    *   `config.py`: Centralized XDG-compliant path management.
-*   `install.sh`: System-level installation and autostart setup.
-
-### Editable Install
-For development, you can install the package in editable mode:
-```bash
-pip install -e .
+```
+claude-usage-watcher/
+├── claude_usage_watcher.py   ← entry point
+├── install.sh
+└── watcher/
+    ├── config.py               ← paths, constants, settings, shared logger
+    ├── theme.py                ← tier thresholds, progressive colors, CSS helpers
+    ├── icons.py                ← Cairo rendering (tray icon + gauge)
+    ├── api.py                  ← token reading, API fetch, time formatting
+    ├── window.py               ← popup UI (ObsidianWindow, ClassicWindow)
+    └── tray.py                 ← ClaudeWatcher (tray icon + polling)
 ```
 
 ## License

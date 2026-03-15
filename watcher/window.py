@@ -156,19 +156,7 @@ class ObsidianWindow(BaseWindow):
         _set_screen_provider(_obsidian_css_provider)
 
     def _status_markup(self, utilization):
-        t = tier(utilization)
-
-        if t == 0:
-            label, desc = "SAFE", "All systems operational"
-        elif t == 1:
-            label, desc = "WARNING", "Approaching limit"
-        elif t == 2:
-            label, desc = "CRITICAL", "Usage capacity critical"
-        else:
-            label, desc = "EXTREME", "Limit almost exhausted"
-
-        color = _hex(utilization_color(utilization))
-        return f'<span foreground="{color}" weight="bold" size="small">{label}</span>\n<span size="medium" foreground="#F4F4F5">{desc}</span>'
+        return _status_markup(utilization, text_color="#F4F4F5")
 
     def _make_metric(self, label_text):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
@@ -333,11 +321,21 @@ menuitem:hover {
 }
 """
 
-_CLASSIC_STATUS = [
-    ("#26A269", "All clear"),
-    ("#E5A50A", "Approaching limit"),
-    ("#C01C28", "Critical usage"),
-]
+def _status_markup(utilization, text_color="#F4F4F5"):
+    t = tier(utilization)
+    if t == 0:
+        label, desc = "SAFE", "All systems operational"
+    elif t == 1:
+        label, desc = "WARNING", "Approaching limit"
+    elif t == 2:
+        label, desc = "CRITICAL", "Usage capacity critical"
+    else:
+        label, desc = "EXTREME", "Limit almost exhausted"
+    color = _hex(utilization_color(utilization))
+    return (
+        f'<span foreground="{color}" weight="bold" size="small">{label}</span>\n'
+        f'<span size="medium" foreground="{text_color}">{desc}</span>'
+    )
 
 class ClassicWindow(BaseWindow):
     def __init__(self):
@@ -422,8 +420,8 @@ class ClassicWindow(BaseWindow):
             five_h_util = usage_data.get("five_hour", {}).get("utilization", 0)
             seven_d_util = usage_data.get("seven_day", {}).get("utilization", 0)
 
-            color, text = _CLASSIC_STATUS[min(tier(max(five_h_util, seven_d_util)), 2)]
-            self._status_label.set_markup(f'<span foreground="{color}">{text}</span>')
+            dominant = max(five_h_util, seven_d_util)
+            self._status_label.set_markup(_status_markup(dominant, text_color="#E8E2F4"))
 
             self._fill_section(self._five_h, usage_data.get("five_hour", {}))
             self._fill_section(self._seven_d, usage_data.get("seven_day", {}))
@@ -437,7 +435,8 @@ class ClassicWindow(BaseWindow):
 
     def _fill_section(self, section, data):
         utilization = data.get("utilization", 0)
-        section["pct"].set_markup(f'<span size="xx-large" weight="bold">{utilization:.0f}%</span>')
+        color = _hex(utilization_color(utilization))
+        section["pct"].set_markup(f'<span size="xx-large" weight="bold" foreground="{color}">{utilization:.0f}%</span>')
         section["bar"].set_fraction(min(utilization / 100.0, 1.0))
         section["provider"].load_from_data(get_classic_bar_css(utilization))
         resets_at = data.get("resets_at", "")

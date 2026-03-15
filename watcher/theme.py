@@ -59,12 +59,18 @@ def get_palette():
 
 
 def classic_tier_color(utilization):
-    """Color RGB del arco clásico para la utilización dada (clampeado a los 3 niveles del tema Classic)."""
-    return _PALETTE_CLASSIC[min(tier(utilization), 2)]
+    """Color RGB del arco clásico — usa la misma interpolación progresiva que Obsidian."""
+    return utilization_color(utilization)
 
 
 def get_classic_bar_css(utilization):
-    return _BAR_CSS_CLASSIC[min(tier(utilization), 2)]
+    r, g, b = utilization_color(utilization)
+    color = f"#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}"
+    css = (
+        f"progressbar > trough > progress {{ background-color: {color};"
+        " background-image: none; border-radius: 4px; }"
+    )
+    return css.encode()
 
 
 def icon_path_for(utilization):
