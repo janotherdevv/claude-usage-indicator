@@ -1,4 +1,4 @@
-# Claude Usage Indicator
+# Claude Usage Watcher
 
 A lightweight system tray application for Linux (Ubuntu/GNOME) that displays real-time Claude API usage and token utilization.
 
@@ -45,8 +45,8 @@ The easiest way to install and configure the application is using the provided i
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/yourusername/claude-usage-indicator.git
-    cd claude-usage-indicator
+    git clone https://github.com/yourusername/claude-usage-watcher.git
+    cd claude-usage-watcher
     ```
 
 2.  **Run the installation script:**
@@ -59,9 +59,9 @@ The easiest way to install and configure the application is using the provided i
 ## Usage
 
 ### Command Line
-Once installed, you can start the indicator from your terminal:
+Once installed, you can start the watcher from your terminal:
 ```bash
-claude-usage-indicator &
+claude-usage-watcher &
 ```
 
 ### Automatic Start
@@ -70,7 +70,7 @@ The installation script creates a `.desktop` entry in `~/.config/autostart/`, so
 ### Monitoring Logs
 Logs are managed via standard RotatingFileHandlers. You can monitor activity with:
 ```bash
-tail -f ~/.local/share/claude-usage-indicator/logs/indicator.log
+tail -f ~/.local/share/claude-usage-watcher/logs/watcher.log
 ```
 
 ## Development & Structure
@@ -79,7 +79,7 @@ The project is structured as a standard Python package using `hatchling` as the 
 
 ### Key Files
 *   `pyproject.toml`: Package metadata and entry points.
-*   `indicator/`: Main package containing the application logic.
+*   `watcher/`: Main package containing the application logic.
     *   `tray.py`: Application entry point and tray logic.
     *   `api.py`: Anthropic API integration.
     *   `icons.py`: Dynamic Cairo-based icon rendering.

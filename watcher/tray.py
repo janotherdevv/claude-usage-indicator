@@ -19,16 +19,16 @@ from .api import read_token, fetch_usage, format_reset_time
 from .window import UsageWindow
 
 
-class ClaudeIndicator(Gtk.Application):
+class ClaudeWatcher(Gtk.Application):
     def __init__(self):
-        super().__init__(application_id="com.claudeusage.indicator")
+        super().__init__(application_id="com.claudeusage.watcher")
         self.usage_data = None
         self.last_error = None
         self.last_updated = None
         self._fetching = False
         self.popup_window = None
         self._last_notified_tier = None
-        _log.debug("ClaudeIndicator initialized")
+        _log.debug("ClaudeWatcher initialized")
 
     def do_activate(self):
         # Mantenemos la aplicación viva aunque no haya ventanas abiertas
@@ -194,7 +194,7 @@ class ClaudeIndicator(Gtk.Application):
 
     def _send_tier_notification(self, new_tier, five_h, seven_d, data):
         try:
-            notif = Gio.Notification.new("Claude Usage")
+            notif = Gio.Notification.new("Claude Usage Watcher")
             reset_str = self._best_reset_time(five_h, seven_d, data)
             max_util = max(five_h, seven_d)
 
@@ -283,7 +283,7 @@ class ClaudeIndicator(Gtk.Application):
 
 
 def main():
-    app = ClaudeIndicator()
+    app = ClaudeWatcher()
     app.run()
 
 
