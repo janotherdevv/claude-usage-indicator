@@ -18,6 +18,28 @@ POLL_INTERVAL = 1800  # segundos (30 minutos)
 ASSETS_DIR = USER_CACHE_DIR / "assets"
 ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
+# Configuración de Usuario
+CONFIG_PATH = USER_DATA_DIR / "settings.json"
+
+def get_settings():
+    import json
+    defaults = {"theme": "obsidian"}
+    if not CONFIG_PATH.exists():
+        return defaults
+    try:
+        with open(CONFIG_PATH, "r") as f:
+            return {**defaults, **json.load(f)}
+    except:
+        return defaults
+
+def update_setting(key, value):
+    import json
+    settings = get_settings()
+    settings[key] = value
+    USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    with open(CONFIG_PATH, "w") as f:
+        json.dump(settings, f)
+
 # Configuración de Logs
 LOG_DIR = USER_DATA_DIR / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)

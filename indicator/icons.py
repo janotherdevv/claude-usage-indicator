@@ -3,7 +3,8 @@ import math
 import cairo
 from gi.repository import GdkPixbuf, Gdk
 
-from .theme import get_palette
+from .theme import get_palette, tier
+from .config import get_settings
 
 
 def render_pixbuf(five_h_util, seven_d_util, size=22):
@@ -19,6 +20,14 @@ def render_pixbuf(five_h_util, seven_d_util, size=22):
 
 
 def draw_gauge(ctx, x, y, size, five_h_util, seven_d_util, is_tray=False):
+    theme = get_settings().get("theme", "obsidian")
+    if theme == "classic":
+        draw_classic_gauge(ctx, x, y, size, max(five_h_util, seven_d_util))
+    else:
+        draw_obsidian_gauge(ctx, x, y, size, five_h_util, seven_d_util, is_tray)
+
+
+def draw_obsidian_gauge(ctx, x, y, size, five_h_util, seven_d_util, is_tray=False):
     """
     Dibuja el 'Obsidian Gauge' con dos anillos concéntricos.
     - Anillo Exterior (7d): Fino, órbita sutil.
@@ -70,6 +79,32 @@ def draw_gauge(ctx, x, y, size, five_h_util, seven_d_util, is_tray=False):
         r, g, b = palette["accent"]
         ctx.set_source_rgb(r, g, b)
         ctx.arc(x, y, inner_radius, start_angle, start_angle + full_sweep * fraction_5h)
+        ctx.stroke()
+
+
+def draw_classic_gauge(ctx, cx, cy, size, utilization):
+    """Renderiza un icono cuadrado con arco de progreso de 270° (Estilo Clásico)."""
+    ctx.set_line_cap(cairo.LINE_CAP_ROUND)
+    palette = get_palette()
+
+    radius = size * 0.36
+    stroke = size * 0.114
+    start_angle = math.pi * 0.75   # 135°
+    sweep = math.pi * 1.5          # 270°
+
+    ctx.set_line_width(stroke)
+
+    # Track: blanco al 20% de opacidad
+    ctx.set_source_rgba(1, 1, 1, 0.20)
+    ctx.arc(cx, cy, radius, start_angle, start_angle + sweep)
+    ctx.stroke()
+
+    # Fill: color proporcional a la utilización
+    fraction = min(utilization / 100.0, 1.0)
+    if fraction > 0:
+        r, g, b = palette[tier(utilization)]
+        ctx.set_source_rgb(r, g, b)
+        ctx.arc(cx, cy, radius, start_angle, start_angle + sweep * fraction)
         ctx.stroke()
 
 

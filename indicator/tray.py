@@ -12,7 +12,7 @@ from gi.repository import Gtk, GLib, Gdk, Gio
 # pero sigue siendo la forma estándar en muchos escritorios Linux.
 warnings.filterwarnings("ignore", ".*StatusIcon.*", DeprecationWarning)
 
-from .config import POLL_INTERVAL, _log
+from .config import POLL_INTERVAL, _log, get_settings, update_setting
 from .theme import tier
 from .icons import render_pixbuf
 from .api import read_token, fetch_usage, format_reset_time
@@ -56,6 +56,25 @@ class ClaudeIndicator(Gtk.Application):
         self._item_refresh = item_refresh
         menu.append(item_refresh)
 
+        # Submenú de Diseño
+        design_menu = Gtk.Menu()
+        item_design = Gtk.MenuItem(label="Design")
+        item_design.set_submenu(design_menu)
+
+        current_theme = get_settings().get("theme", "obsidian")
+
+        item_obsidian = Gtk.RadioMenuItem(label="Obsidian (Concentric)")
+        item_obsidian.set_active(current_theme == "obsidian")
+        item_obsidian.connect("activate", self._on_change_theme, "obsidian")
+        design_menu.append(item_obsidian)
+
+        item_classic = Gtk.RadioMenuItem(label="Classic (Arc)", group=item_obsidian)
+        item_classic.set_active(current_theme == "classic")
+        item_classic.connect("activate", self._on_change_theme, "classic")
+        design_menu.append(item_classic)
+
+        menu.append(item_design)
+
         item_open = Gtk.MenuItem(label="Open claude.ai")
         item_open.connect("activate", lambda _: Gio.AppInfo.launch_default_for_uri("https://claude.ai", None))
         menu.append(item_open)
@@ -68,6 +87,27 @@ class ClaudeIndicator(Gtk.Application):
 
         menu.show_all()
         return menu
+
+    def _on_change_theme(self, widget, theme_name):
+        if not widget.get_active():
+            return
+        
+        if get_settings().get("theme") == theme_name:
+            return
+
+        _log.info(f"Changing theme to {theme_name}")
+        update_setting("theme", theme_name)
+        
+        # Actualizar icono inmediatamente
+        if self.usage_data:
+            self._apply_usage_data(self.usage_data)
+        else:
+            self.status_icon.set_from_pixbuf(render_pixbuf(0.0, 0.0))
+
+        # Si la ventana está abierta, la cerramos para que se recree con el nuevo diseño
+        if self.popup_window:
+            self.popup_window.window.hide()
+            # La recrearemos en el próximo click izquierdo
 
     def _on_quit(self, _):
         _log.info("Closing application")
