@@ -322,15 +322,18 @@ menuitem:hover {
 """
 
 def _status_markup(utilization, text_color="#F4F4F5"):
-    t = tier(utilization)
-    if t == 0:
-        label, desc = "SAFE", "All systems operational"
-    elif t == 1:
-        label, desc = "WARNING", "Approaching limit"
-    elif t == 2:
-        label, desc = "CRITICAL", "Usage capacity critical"
+    if utilization >= 100:
+        label, desc = "LIMIT REACHED", "Tokens fully exhausted"
     else:
-        label, desc = "EXTREME", "Limit almost exhausted"
+        t = tier(utilization)
+        if t == 0:
+            label, desc = "SAFE", "All systems operational"
+        elif t == 1:
+            label, desc = "WARNING", "Approaching limit"
+        elif t == 2:
+            label, desc = "CRITICAL", "Usage capacity critical"
+        else:
+            label, desc = "EXTREME", "Limit almost exhausted"
     color = _hex(utilization_color(utilization))
     return (
         f'<span foreground="{color}" weight="bold" size="small">{label}</span>\n'

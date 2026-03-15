@@ -223,7 +223,9 @@ class ClaudeWatcher(Gtk.Application):
             reset_str = self._best_reset_time(five_h, seven_d, data)
             max_util = max(five_h, seven_d)
 
-            if new_tier == 0:
+            if max_util >= 100:
+                body = f"LIMIT REACHED — Tokens exhausted  ·  resets {reset_str}"
+            elif new_tier == 0:
                 body = f"Back to normal — {max_util:.0f}%"
             elif new_tier == 1:
                 body = f"High usage — {max_util:.0f}%  ·  resets {reset_str}"

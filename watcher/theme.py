@@ -8,16 +8,16 @@ _PALETTE_OBSIDIAN = {
     "zinc_500": (0.443, 0.443, 0.482),  # #71717A
 }
 
-# Stops para color progresivo: 0%=verde → 70%=ámbar → 95%=rojo → 100%=morado
+# Stops para color progresivo: 0%=verde → 60%=ámbar → 85%=rojo → 100%=morado
 _COLOR_STOPS = [
-    (0,   70,  (0.086, 0.639, 0.290), (0.851, 0.467, 0.024)),  # #16A34A → #D97706
-    (70,  95,  (0.851, 0.467, 0.024), (0.863, 0.149, 0.149)),  # #D97706 → #DC2626
-    (95, 100,  (0.863, 0.149, 0.149), (0.576, 0.200, 0.918)),  # #DC2626 → #9333EA
+    (0,   60,  (0.086, 0.639, 0.290), (0.851, 0.467, 0.024)),  # #16A34A → #D97706
+    (60,  85,  (0.851, 0.467, 0.024), (0.863, 0.149, 0.149)),  # #D97706 → #DC2626
+    (85, 100,  (0.863, 0.149, 0.149), (0.576, 0.200, 0.918)),  # #DC2626 → #9333EA
 ]
 
 
 def utilization_color(utilization):
-    """Devuelve RGB interpolado: verde(0%) → ámbar(70%) → rojo(95%) → morado(100%)."""
+    """Devuelve RGB interpolado: verde(0%) → ámbar(60%) → rojo(85%) → morado(100%)."""
     u = max(0.0, min(100.0, float(utilization)))
     for lo, hi, c0, c1 in _COLOR_STOPS:
         if u <= hi:
@@ -42,12 +42,12 @@ _ICON_NAMES = ["icon_ok.png", "icon_warn.png", "icon_crit.png"]
 
 
 def tier(utilization):
-    """0=normal(<70%) · 1=warning(70-90%) · 2=critical(90-95%) · 3=extreme(≥95%)."""
+    """0=normal(<60%) · 1=warning(60-85%) · 2=critical(85-95%) · 3=extreme(≥95%)."""
     if utilization >= 95:
         return 3
-    if utilization >= 90:
+    if utilization >= 85:
         return 2
-    if utilization >= 70:
+    if utilization >= 60:
         return 1
     return 0
 
