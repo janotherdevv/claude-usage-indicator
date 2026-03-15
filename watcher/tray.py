@@ -210,13 +210,16 @@ class ClaudeWatcher(Gtk.Application):
                 body = f"Back to normal — {max_util:.0f}%"
             elif new_tier == 1:
                 body = f"High usage — {max_util:.0f}%  ·  resets {reset_str}"
-            else:  # tier 2
+            elif new_tier == 2:
                 body = f"Critical usage — {max_util:.0f}%!  ·  resets {reset_str}"
+            else:  # tier 3 — extreme
+                body = f"EXTREME usage — {max_util:.0f}%!!  ·  resets {reset_str}"
 
             notif.set_body(body)
             notif.set_priority(
-                Gio.NotificationPriority.NORMAL if new_tier <= 1
-                else Gio.NotificationPriority.HIGH
+                Gio.NotificationPriority.URGENT if new_tier >= 3
+                else Gio.NotificationPriority.HIGH if new_tier == 2
+                else Gio.NotificationPriority.NORMAL
             )
             self.send_notification("usage-alert", notif)
         except Exception as e:

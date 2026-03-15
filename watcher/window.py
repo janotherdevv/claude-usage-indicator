@@ -6,7 +6,7 @@ import cairo
 import math
 from datetime import datetime
 
-from .theme import get_palette, tier, get_classic_bar_css
+from .theme import get_palette, tier, get_classic_bar_css, utilization_color
 from .api import format_reset_time
 from .icons import draw_gauge
 from .config import get_settings
@@ -144,19 +144,18 @@ class ObsidianWindow:
         _set_screen_provider(_obsidian_css_provider)
 
     def _status_markup(self, utilization):
-        palette = get_palette()
         t = tier(utilization)
-        
+
         if t == 0:
             label, desc = "SAFE", "All systems operational"
-            color = "#A1A1AA" # Zinc 400
         elif t == 1:
             label, desc = "WARNING", "Approaching limit"
-            color = "#818CF8" # Indigo 400
-        else:
+        elif t == 2:
             label, desc = "CRITICAL", "Usage capacity critical"
-            color = "#6366F1" # Indigo 500
+        else:
+            label, desc = "EXTREME", "Limit almost exhausted"
 
+        color = _hex(utilization_color(utilization))
         return f'<span foreground="{color}" weight="bold" size="small">{label}</span>\n<span size="medium" foreground="#F4F4F5">{desc}</span>'
 
     def _make_metric(self, label_text):
@@ -183,7 +182,6 @@ class ObsidianWindow:
         h = darea.get_allocated_height()
         cx, cy = w/2, h/2
         size = min(w, h)
-        palette = get_palette()
 
         if self._pulsing:
             draw_gauge(ctx, cx, cy, size, self.pulse_val, self.pulse_val * 0.7)
@@ -193,26 +191,25 @@ class ObsidianWindow:
             display_util = max(self.five_h_util, self.seven_d_util)
 
         t = tier(display_util)
-        
-        glow_count = 1 if t == 0 else (2 if t == 1 else 4)
-        glow_alpha = 0.08 if t == 0 else (0.12 if t == 1 else 0.15)
-        
-        if t == 2:
+        r, g, b = utilization_color(display_util)
+
+        glow_count = 1 if t == 0 else (2 if t == 1 else (4 if t == 2 else 5))
+        glow_alpha = 0.08 if t == 0 else (0.12 if t == 1 else (0.15 if t == 2 else 0.22))
+
+        if t >= 2:
             glow_alpha *= (0.8 + 0.2 * math.sin(datetime.now().timestamp() * 4))
 
         for i in range(1, glow_count + 1):
-            r, g, b = palette["accent"]
             ctx.set_source_rgba(r, g, b, glow_alpha / i)
             ctx.arc(cx, cy, size * (0.1 + i * 0.02), 0, 2 * math.pi)
             ctx.fill()
 
         ctx.select_font_face("Inter", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
         ctx.set_font_size(size * 0.18)
-        
+
         text = f"{display_util:.0f}%"
         extents = ctx.text_extents(text)
-        
-        r, g, b = palette["zinc_100"]
+
         ctx.set_source_rgba(r, g, b, 0.95)
         ctx.move_to(cx - extents.width/2 - extents.x_bearing, cy + extents.height/2)
         ctx.show_text(text)
@@ -238,7 +235,7 @@ class ObsidianWindow:
         else:
             self.seven_d_util = self.target_7d
             
-        if tier(max(self.five_h_util, self.seven_d_util)) == 2:
+        if tier(max(self.five_h_util, self.seven_d_util)) >= 2:
             changed = True
 
         if changed:
@@ -254,7 +251,6 @@ class ObsidianWindow:
             return
 
         if usage_data:
-            palette = get_palette()
             new_5h = usage_data.get("five_hour", {}).get("utilization", 0)
             new_7d = usage_data.get("seven_day", {}).get("utilization", 0)
 
@@ -267,13 +263,13 @@ class ObsidianWindow:
             self._status_label.set_markup(markup)
             self.darea.set_tooltip_text(f"Diario (5h): {new_5h:.0f}%  ·  Semanal (7d): {new_7d:.0f}%")
             
-            color_diario = _hex(palette["accent"])
+            color_diario = _hex(utilization_color(new_5h))
             self._m_daily["lbl"].set_markup(f'<span foreground="{color_diario}">DIARIO</span>')
             self._m_daily["val"].set_text(f"{new_5h:.0f}%")
             res_5h = usage_data.get("five_hour", {}).get("resets_at", "")
             self._m_daily["reset"].set_text(f"RESETS {format_reset_time(res_5h).upper()}" if res_5h else "")
 
-            color_semanal = _hex(palette["accent_dim"])
+            color_semanal = _hex(utilization_color(new_7d))
             self._m_weekly["lbl"].set_markup(f'<span foreground="{color_semanal}">SEMANAL</span>')
             self._m_weekly["val"].set_text(f"{new_7d:.0f}%")
             res_7d = usage_data.get("seven_day", {}).get("resets_at", "")
@@ -308,6 +304,17 @@ progressbar trough {
 progressbar trough progress {
     border-radius: 4px;
     min-height: 8px;
+}
+menu {
+    background-color: #09090B;
+    color: #D4D4D8;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+menuitem label {
+    color: #D4D4D8;
+}
+menuitem:hover {
+    background-color: rgba(255, 255, 255, 0.08);
 }
 """
 

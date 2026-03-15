@@ -1,14 +1,29 @@
 from .config import ASSETS_DIR, get_settings
 
-# Obsidian Palette: High-precision, monochromatic Indigo-Blue tones
+# Obsidian Palette: colores fijos para fondos y texto; los arcos usan utilization_color()
 _PALETTE_OBSIDIAN = {
-    "bg": (0.035, 0.035, 0.043),      # #09090B Zinc 950
-    "accent": (0.388, 0.400, 0.945),  # #6366F1 Indigo 500 (Primary)
-    "accent_dim": (0.506, 0.549, 0.973), # #818CF8 Indigo 400 (Secondary)
-    "zinc_100": (0.957, 0.957, 0.961), # #F4F4F5
-    "zinc_400": (0.631, 0.631, 0.702), # #A1A1AA
-    "zinc_500": (0.443, 0.443, 0.482), # #71717A
+    "bg": (0.035, 0.035, 0.043),        # #09090B Zinc 950
+    "zinc_100": (0.957, 0.957, 0.961),  # #F4F4F5
+    "zinc_400": (0.631, 0.631, 0.702),  # #A1A1AA
+    "zinc_500": (0.443, 0.443, 0.482),  # #71717A
 }
+
+# Stops para color progresivo: 0%=verde → 70%=ámbar → 95%=rojo → 100%=morado
+_COLOR_STOPS = [
+    (0,   70,  (0.086, 0.639, 0.290), (0.851, 0.467, 0.024)),  # #16A34A → #D97706
+    (70,  95,  (0.851, 0.467, 0.024), (0.863, 0.149, 0.149)),  # #D97706 → #DC2626
+    (95, 100,  (0.863, 0.149, 0.149), (0.576, 0.200, 0.918)),  # #DC2626 → #9333EA
+]
+
+
+def utilization_color(utilization):
+    """Devuelve RGB interpolado: verde(0%) → ámbar(70%) → rojo(95%) → morado(100%)."""
+    u = max(0.0, min(100.0, float(utilization)))
+    for lo, hi, c0, c1 in _COLOR_STOPS:
+        if u <= hi:
+            t = (u - lo) / (hi - lo) if hi > lo else 1.0
+            return tuple(c0[i] + t * (c1[i] - c0[i]) for i in range(3))
+    return (0.576, 0.200, 0.918)  # morado fijo para >100%
 
 # Classic Palette (from main branch)
 _PALETTE_CLASSIC = [
@@ -27,7 +42,9 @@ _ICON_NAMES = ["icon_ok.png", "icon_warn.png", "icon_crit.png"]
 
 
 def tier(utilization):
-    """Thresholds for intensity and pulse behavior."""
+    """0=normal(<70%) · 1=warning(70-90%) · 2=critical(90-95%) · 3=extreme(≥95%)."""
+    if utilization >= 95:
+        return 3
     if utilization >= 90:
         return 2
     if utilization >= 70:
@@ -43,11 +60,11 @@ def get_palette():
 
 
 def get_classic_bar_css(utilization):
-    return _BAR_CSS_CLASSIC[tier(utilization)]
+    return _BAR_CSS_CLASSIC[min(tier(utilization), 2)]
 
 
 def icon_path_for(utilization):
-    return str(ASSETS_DIR / _ICON_NAMES[tier(utilization)])
+    return str(ASSETS_DIR / _ICON_NAMES[min(tier(utilization), 2)])
 
 
 def icon_names():

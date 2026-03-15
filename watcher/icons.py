@@ -3,7 +3,7 @@ import math
 import cairo
 from gi.repository import GdkPixbuf, Gdk
 
-from .theme import get_palette, tier
+from .theme import get_palette, tier, utilization_color
 from .config import get_settings
 
 
@@ -34,7 +34,6 @@ def draw_obsidian_gauge(ctx, x, y, size, five_h_util, seven_d_util, is_tray=Fals
     - Anillo Interior (5h): Más grueso, pulso inmediato.
     """
     ctx.set_line_cap(cairo.LINE_CAP_ROUND)
-    palette = get_palette()
 
     # Parámetros según escala
     if is_tray:
@@ -58,10 +57,10 @@ def draw_obsidian_gauge(ctx, x, y, size, five_h_util, seven_d_util, is_tray=Fals
     ctx.arc(x, y, outer_radius, 0, full_sweep)
     ctx.stroke()
 
-    # Progress (Secondary Accent)
+    # Progress: color progresivo según utilización del período 7d
     fraction_7d = min(seven_d_util / 100.0, 1.0)
     if fraction_7d > 0:
-        r, g, b = palette["accent_dim"]
+        r, g, b = utilization_color(seven_d_util)
         ctx.set_source_rgb(r, g, b)
         ctx.arc(x, y, outer_radius, start_angle, start_angle + full_sweep * fraction_7d)
         ctx.stroke()
@@ -73,10 +72,10 @@ def draw_obsidian_gauge(ctx, x, y, size, five_h_util, seven_d_util, is_tray=Fals
     ctx.arc(x, y, inner_radius, 0, full_sweep)
     ctx.stroke()
 
-    # Progress (Primary Accent)
+    # Progress: color progresivo según utilización del período 5h
     fraction_5h = min(five_h_util / 100.0, 1.0)
     if fraction_5h > 0:
-        r, g, b = palette["accent"]
+        r, g, b = utilization_color(five_h_util)
         ctx.set_source_rgb(r, g, b)
         ctx.arc(x, y, inner_radius, start_angle, start_angle + full_sweep * fraction_5h)
         ctx.stroke()
