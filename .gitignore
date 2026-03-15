@@ -1,5 +1,5 @@
 .agents
-assets/*
+assets
 .claude
 CLAUDE.md
 DESIGN-COUNCIL-PRD.md

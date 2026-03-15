@@ -7,8 +7,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent
 
 # Directorios de datos del usuario
-USER_DATA_DIR = Path.home() / ".local" / "share" / "claude-usage-indicator"
-USER_CACHE_DIR = Path.home() / ".cache" / "claude-usage-indicator"
+USER_DATA_DIR = Path.home() / ".local" / "share" / "claude-usage-watcher"
+USER_CACHE_DIR = Path.home() / ".cache" / "claude-usage-watcher"
 
 CREDENTIALS_PATH = Path.home() / ".claude" / ".credentials.json"
 API_URL = "https://api.anthropic.com/api/oauth/usage"
@@ -18,12 +18,38 @@ POLL_INTERVAL = 1800  # segundos (30 minutos)
 ASSETS_DIR = USER_CACHE_DIR / "assets"
 ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
+# Configuración de Usuario
+CONFIG_PATH = USER_DATA_DIR / "settings.json"
+
+def get_settings():
+    import json
+    defaults = {"theme": "obsidian"}
+    if not CONFIG_PATH.exists():
+        return defaults
+    try:
+        with open(CONFIG_PATH, "r") as f:
+            return {**defaults, **json.load(f)}
+    except:
+        return defaults
+
+def get_theme():
+    """Devuelve el nombre del tema activo ('obsidian' | 'classic')."""
+    return get_settings().get("theme", "obsidian")
+
+def update_setting(key, value):
+    import json
+    settings = get_settings()
+    settings[key] = value
+    USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    with open(CONFIG_PATH, "w") as f:
+        json.dump(settings, f)
+
 # Configuración de Logs
 LOG_DIR = USER_DATA_DIR / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-# El archivo activo será indicator.log
-LOG_PATH = LOG_DIR / "indicator.log"
+# El archivo activo será watcher.log
+LOG_PATH = LOG_DIR / "watcher.log"
 
 _log = logging.getLogger("claude_usage")
 _log.setLevel(logging.INFO)
@@ -35,7 +61,7 @@ file_handler = logging.handlers.TimedRotatingFileHandler(
 
 # Función para que al rotar el nombre sea exactamente la fecha: YYYY-MM-DD.log
 def daily_namer(default_name):
-    # default_name suele ser indicator.log.YYYY-MM-DD
+    # default_name suele ser watcher.log.YYYY-MM-DD
     parts = default_name.split('.')
     if len(parts) >= 3:
         # Extraemos la fecha (última parte) y le ponemos .log
@@ -57,4 +83,4 @@ stream_handler.setFormatter(formatter)
 _log.addHandler(file_handler)
 _log.addHandler(stream_handler)
 
-_log.info("--- Claude Usage Indicator Started ---")
+_log.info("--- Claude Usage Watcher Started ---")

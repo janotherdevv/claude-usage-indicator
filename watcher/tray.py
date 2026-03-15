@@ -12,23 +12,23 @@ from gi.repository import Gtk, GLib, Gdk, Gio
 # pero sigue siendo la forma estándar en muchos escritorios Linux.
 warnings.filterwarnings("ignore", ".*StatusIcon.*", DeprecationWarning)
 
-from .config import POLL_INTERVAL, _log
+from .config import POLL_INTERVAL, _log, get_theme, update_setting
 from .theme import tier
-from .icons import write_dynamic_icon
+from .icons import render_pixbuf
 from .api import read_token, fetch_usage, format_reset_time
 from .window import UsageWindow
 
 
-class ClaudeIndicator(Gtk.Application):
+class ClaudeWatcher(Gtk.Application):
     def __init__(self):
-        super().__init__(application_id="com.claudeusage.indicator")
+        super().__init__(application_id="com.claudeusage.watcher")
         self.usage_data = None
         self.last_error = None
         self.last_updated = None
         self._fetching = False
         self.popup_window = None
         self._last_notified_tier = None
-        _log.debug("ClaudeIndicator initialized")
+        _log.debug("ClaudeWatcher initialized")
 
     def do_activate(self):
         # Mantenemos la aplicación viva aunque no haya ventanas abiertas
@@ -36,8 +36,8 @@ class ClaudeIndicator(Gtk.Application):
         _log.info("Application activated")
 
         self.status_icon = Gtk.StatusIcon()
-        # Icono inicial vacío (0%)
-        self.status_icon.set_from_file(write_dynamic_icon(0.0))
+        # Icono inicial vacío (0/0%) desde memoria (Pixbuf)
+        self.status_icon.set_from_pixbuf(render_pixbuf(0.0, 0.0))
         self.status_icon.set_tooltip_text("Claude — loading...")
         self.status_icon.connect("activate", self._on_left_click)
         self.status_icon.connect("popup-menu", self._on_right_click)
@@ -56,6 +56,42 @@ class ClaudeIndicator(Gtk.Application):
         self._item_refresh = item_refresh
         menu.append(item_refresh)
 
+        # Submenú de Diseño
+        design_menu = Gtk.Menu()
+        item_design = Gtk.MenuItem(label="Design")
+        item_design.set_submenu(design_menu)
+
+        # Desactivar flechas de scroll en el submenú (solo 2 opciones, nunca hacen falta).
+        # Se silencia stderr durante load_from_data para evitar el warning por la propiedad
+        # deprecated -GtkMenu-double-arrows, que sigue siendo la única forma fiable de suprimirlas.
+        import os as _os
+        _css = b"menu { -GtkMenu-double-arrows: 0; } menu > arrow { min-height: 0; min-width: 0; opacity: 0; }"
+        _prov = Gtk.CssProvider()
+        _devnull = _os.open(_os.devnull, _os.O_WRONLY)
+        _saved = _os.dup(2)
+        _os.dup2(_devnull, 2)
+        try:
+            _prov.load_from_data(_css)
+        finally:
+            _os.dup2(_saved, 2)
+            _os.close(_saved)
+            _os.close(_devnull)
+        design_menu.get_style_context().add_provider(_prov, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
+        current_theme = get_theme()
+
+        item_obsidian = Gtk.RadioMenuItem(label="Obsidian (Concentric)")
+        item_obsidian.set_active(current_theme == "obsidian")
+        item_obsidian.connect("activate", self._on_change_theme, "obsidian")
+        design_menu.append(item_obsidian)
+
+        item_classic = Gtk.RadioMenuItem(label="Classic (Arc)", group=item_obsidian)
+        item_classic.set_active(current_theme == "classic")
+        item_classic.connect("activate", self._on_change_theme, "classic")
+        design_menu.append(item_classic)
+
+        menu.append(item_design)
+
         item_open = Gtk.MenuItem(label="Open claude.ai")
         item_open.connect("activate", lambda _: Gio.AppInfo.launch_default_for_uri("https://claude.ai", None))
         menu.append(item_open)
@@ -63,11 +99,37 @@ class ClaudeIndicator(Gtk.Application):
         menu.append(Gtk.SeparatorMenuItem())
 
         item_quit = Gtk.MenuItem(label="Quit")
-        item_quit.connect("activate", lambda _: (self.release(), self.quit()))
+        item_quit.connect("activate", self._on_quit)
         menu.append(item_quit)
 
         menu.show_all()
         return menu
+
+    def _on_change_theme(self, widget, theme_name):
+        if not widget.get_active():
+            return
+        
+        if get_theme() == theme_name:
+            return
+
+        _log.info(f"Changing theme to {theme_name}")
+        update_setting("theme", theme_name)
+        
+        # Actualizar icono inmediatamente
+        if self.usage_data:
+            self._apply_usage_data(self.usage_data)
+        else:
+            self.status_icon.set_from_pixbuf(render_pixbuf(0.0, 0.0))
+
+        # Si la ventana está abierta, la cerramos para que se recree con el nuevo diseño
+        if self.popup_window:
+            self.popup_window.window.hide()
+            # La recrearemos en el próximo click izquierdo
+
+    def _on_quit(self, _):
+        _log.info("Closing application")
+        self.quit()
+        sys.exit(0)
 
     def _on_refresh_now(self, _):
         self.last_updated = None  # bypass 60s cooldown
@@ -109,21 +171,28 @@ class ClaudeIndicator(Gtk.Application):
         seven_d = data.get("seven_day", {}).get("utilization", 0)
         max_util = max(five_h, seven_d)
         
-        # Icono dinámico con la utilización real
-        self.status_icon.set_from_file(write_dynamic_icon(max_util))
-        self.status_icon.set_tooltip_text(f"Claude 5h:{five_h:.0f}%  7d:{seven_d:.0f}%")
+        # Actualización de icono desde memoria (Pixbuf)
+        self.status_icon.set_from_pixbuf(render_pixbuf(five_h, seven_d))
+        self.status_icon.set_tooltip_text(f"Claude Diario:{five_h:.0f}%  Semanal:{seven_d:.0f}%")
 
     def _on_fetch_done(self, data, error):
         self._fetching = False
         if hasattr(self, "_item_refresh"):
             self._item_refresh.set_sensitive(True)
 
+        _stale = False
         if not error:
             self._apply_usage_data(data)
             self._check_tier_notifications(data)
         elif "429" in error:
-            # Rate limited, mantenemos datos viejos
-            pass
+            # Rate limited — mostramos datos cacheados con indicador de desactualización
+            _stale = True
+            if self.usage_data:
+                five_h = self.usage_data.get("five_hour", {}).get("utilization", 0)
+                seven_d = self.usage_data.get("seven_day", {}).get("utilization", 0)
+                self.status_icon.set_tooltip_text(
+                    f"Claude (desact.) — Diario:{five_h:.0f}%  Semanal:{seven_d:.0f}%"
+                )
         else:
             self.last_error = error
 
@@ -132,6 +201,7 @@ class ClaudeIndicator(Gtk.Application):
                 usage_data=self.usage_data,
                 error=self.last_error,
                 updated_at=self.last_updated,
+                stale=_stale,
             )
         return False
 
@@ -149,7 +219,7 @@ class ClaudeIndicator(Gtk.Application):
 
     def _send_tier_notification(self, new_tier, five_h, seven_d, data):
         try:
-            notif = Gio.Notification.new("Claude Usage")
+            notif = Gio.Notification.new("Claude Usage Watcher")
             reset_str = self._best_reset_time(five_h, seven_d, data)
             max_util = max(five_h, seven_d)
 
@@ -157,13 +227,16 @@ class ClaudeIndicator(Gtk.Application):
                 body = f"Back to normal — {max_util:.0f}%"
             elif new_tier == 1:
                 body = f"High usage — {max_util:.0f}%  ·  resets {reset_str}"
-            else:  # tier 2
+            elif new_tier == 2:
                 body = f"Critical usage — {max_util:.0f}%!  ·  resets {reset_str}"
+            else:  # tier 3 — extreme
+                body = f"EXTREME usage — {max_util:.0f}%!!  ·  resets {reset_str}"
 
             notif.set_body(body)
             notif.set_priority(
-                Gio.NotificationPriority.NORMAL if new_tier <= 1
-                else Gio.NotificationPriority.HIGH
+                Gio.NotificationPriority.URGENT if new_tier >= 3
+                else Gio.NotificationPriority.HIGH if new_tier == 2
+                else Gio.NotificationPriority.NORMAL
             )
             self.send_notification("usage-alert", notif)
         except Exception as e:
@@ -238,11 +311,7 @@ class ClaudeIndicator(Gtk.Application):
 
 
 def main():
-    # Asegurar que los iconos básicos existen en la cache
-    from .icons import generate_icons
-    generate_icons()
-    
-    app = ClaudeIndicator()
+    app = ClaudeWatcher()
     app.run()
 
 

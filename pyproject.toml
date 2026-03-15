@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "claude-usage-indicator"
+name = "claude-usage-watcher"
 version = "0.1.0"
 description = "Shows Claude API usage in the system tray"
 readme = "README.md"
@@ -23,7 +23,7 @@ dependencies = [
 ]
 
 [project.scripts]
-claude-usage-indicator = "indicator.tray:main"
+claude-usage-watcher = "watcher.tray:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["indicator"]
+packages = ["watcher"]

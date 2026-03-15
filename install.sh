@@ -3,9 +3,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AUTOSTART_DIR="$HOME/.config/autostart"
-DESKTOP_FILE="$AUTOSTART_DIR/claude-usage-indicator.desktop"
+DESKTOP_FILE="$AUTOSTART_DIR/claude-usage-watcher.desktop"
 
-echo "Installing Claude Usage Indicator..."
+echo "Installing Claude Usage Watcher..."
 
 # Check dependencies
 if ! python3 -c "import gi; gi.require_version('AppIndicator3', '0.1'); from gi.repository import AppIndicator3" 2>/dev/null || ! python3 -c "import cairo" 2>/dev/null; then
@@ -19,17 +19,17 @@ python3 -m pip install -e .
 
 # Generate icons once so the desktop file has something to show
 echo "Generating initial icons..."
-python3 -c "from indicator.icons import generate_icons; generate_icons()"
+python3 -c "from watcher.icons import generate_icons; generate_icons()"
 
-chmod +x "$SCRIPT_DIR/claude_usage_indicator.py"
+chmod +x "$SCRIPT_DIR/claude_usage_watcher.py"
 
 mkdir -p "$AUTOSTART_DIR"
 cat > "$DESKTOP_FILE" <<EOF
 [Desktop Entry]
 Type=Application
-Name=Claude Usage Indicator
-Exec=claude-usage-indicator
-Icon=$HOME/.cache/claude-usage-indicator/assets/icon_ok.png
+Name=Claude Usage Watcher
+Exec=claude-usage-watcher
+Icon=$HOME/.cache/claude-usage-watcher/assets/icon_ok.png
 Comment=Shows Claude API usage in the system tray
 Categories=Utility;
 StartupNotify=false
@@ -39,5 +39,5 @@ EOF
 
 echo "Autostart entry created: $DESKTOP_FILE"
 echo ""
-echo "To start now:  claude-usage-indicator &"
+echo "To start now:  claude-usage-watcher &"
 echo "It will auto-start on next login."
