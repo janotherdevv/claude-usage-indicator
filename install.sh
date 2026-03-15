@@ -8,14 +8,14 @@ DESKTOP_FILE="$AUTOSTART_DIR/claude-usage-watcher.desktop"
 echo "Installing Claude Usage Watcher..."
 
 # Check dependencies
-if ! python3 -c "import gi; gi.require_version('AppIndicator3', '0.1'); from gi.repository import AppIndicator3" 2>/dev/null || ! python3 -c "import cairo" 2>/dev/null; then
+if ! python3 -c "import gi; gi.require_version('Gtk', '3.0'); from gi.repository import Gtk" 2>/dev/null || ! python3 -c "import cairo" 2>/dev/null; then
     echo "Missing dependencies. Installing..."
-    sudo apt install -y python3-gi gir1.2-appindicator3-0.1 gir1.2-gtk-3.0 python3-cairo
+    sudo apt install -y python3-gi gir1.2-gtk-3.0 python3-cairo
 fi
 
 # Install the package in editable mode or normally
 echo "Installing Python package..."
-python3 -m pip install -e .
+python3 -m pip install -e . 2>/dev/null || python3 -m pip install -e . --break-system-packages
 
 # Generate icons once so the desktop file has something to show
 echo "Generating initial icons..."
@@ -29,7 +29,7 @@ cat > "$DESKTOP_FILE" <<EOF
 Type=Application
 Name=Claude Usage Watcher
 Exec=claude-usage-watcher
-Icon=$HOME/.cache/claude-usage-watcher/assets/icon_ok.png
+Icon=$HOME/.cache/claude-usage-watcher/assets/icon_current.png
 Comment=Shows Claude API usage in the system tray
 Categories=Utility;
 StartupNotify=false
