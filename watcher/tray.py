@@ -61,6 +61,12 @@ class ClaudeWatcher(Gtk.Application):
         item_design = Gtk.MenuItem(label="Design")
         item_design.set_submenu(design_menu)
 
+        # Desactivar flechas de scroll en el submenú (solo 2 opciones, nunca hacen falta)
+        _css = b"menu > arrow { min-height: 0; min-width: 0; opacity: 0; }"
+        _prov = Gtk.CssProvider()
+        _prov.load_from_data(_css)
+        design_menu.get_style_context().add_provider(_prov, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
         current_theme = get_theme()
 
         item_obsidian = Gtk.RadioMenuItem(label="Obsidian (Concentric)")
