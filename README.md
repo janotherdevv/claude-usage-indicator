@@ -1,4 +1,4 @@
-# Claude Usage Indicator
+# Claude Usage Watcher
 
 A lightweight system tray application for Linux (Ubuntu/GNOME) that displays real-time Claude API usage and token utilization.
 
@@ -45,7 +45,7 @@ The easiest way to install and configure the application is using the provided i
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/yourusername/claude-usage-indicator.git
+    git clone https://github.com/yourusername/claude-usage-watcher.git
     cd claude-usage-indicator
     ```
 
