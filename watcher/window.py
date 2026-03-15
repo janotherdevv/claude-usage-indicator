@@ -8,7 +8,7 @@ from datetime import datetime
 
 from .theme import get_palette, tier, get_classic_bar_css, utilization_color
 from .api import format_reset_time
-from .icons import draw_gauge
+from .icons import draw_obsidian_gauge
 from .config import get_settings
 
 def _hex(rgb):
@@ -129,7 +129,7 @@ class ObsidianWindow:
         self._m_weekly = self._make_metric("SEMANAL")
         metrics_col.pack_start(self._m_weekly["box"], False, False, 0)
 
-        GLib.timeout_add(32, self._tick)
+        self._tick_id = GLib.timeout_add(32, self._tick)
 
     def _apply_theme(self, window):
         global _obsidian_css_provider
@@ -184,10 +184,10 @@ class ObsidianWindow:
         size = min(w, h)
 
         if self._pulsing:
-            draw_gauge(ctx, cx, cy, size, self.pulse_val, self.pulse_val * 0.7)
+            draw_obsidian_gauge(ctx, cx, cy, size, self.pulse_val, self.pulse_val * 0.7)
             display_util = self.pulse_val
         else:
-            draw_gauge(ctx, cx, cy, size, self.five_h_util, self.seven_d_util)
+            draw_obsidian_gauge(ctx, cx, cy, size, self.five_h_util, self.seven_d_util)
             display_util = max(self.five_h_util, self.seven_d_util)
 
         t = tier(display_util)
@@ -219,29 +219,32 @@ class ObsidianWindow:
             self.pulse_val = (self.pulse_val + 2) % 100
             self.darea.queue_draw()
             return True
-            
+
         lerp_factor = 0.12
         changed = False
-        
+
         if abs(self.target_5h - self.five_h_util) > 0.1:
             self.five_h_util += (self.target_5h - self.five_h_util) * lerp_factor
             changed = True
         else:
             self.five_h_util = self.target_5h
-            
+
         if abs(self.target_7d - self.seven_d_util) > 0.1:
             self.seven_d_util += (self.target_7d - self.seven_d_util) * lerp_factor
             changed = True
         else:
             self.seven_d_util = self.target_7d
-            
+
         if tier(max(self.five_h_util, self.seven_d_util)) >= 2:
-            changed = True
+            changed = True  # glow pulse — necesita redraw continuo
 
         if changed:
             self.darea.queue_draw()
-            
-        return True
+            return True
+
+        # Nada que animar: suspender el timer hasta el próximo update()
+        self._tick_id = None
+        return False
 
     def update(self, usage_data=None, error=None, updated_at=None, stale=False):
         self._pulsing = False
@@ -256,6 +259,10 @@ class ObsidianWindow:
 
             self.target_5h = new_5h
             self.target_7d = new_7d
+
+            # Reactivar el timer si estaba suspendido (valores estables previos)
+            if self._tick_id is None:
+                self._tick_id = GLib.timeout_add(32, self._tick)
 
             markup = self._status_markup(max(new_5h, new_7d))
             if stale:
