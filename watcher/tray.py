@@ -163,12 +163,19 @@ class ClaudeWatcher(Gtk.Application):
         if hasattr(self, "_item_refresh"):
             self._item_refresh.set_sensitive(True)
 
+        _stale = False
         if not error:
             self._apply_usage_data(data)
             self._check_tier_notifications(data)
         elif "429" in error:
-            # Rate limited, mantenemos datos viejos
-            pass
+            # Rate limited — mostramos datos cacheados con indicador de desactualización
+            _stale = True
+            if self.usage_data:
+                five_h = self.usage_data.get("five_hour", {}).get("utilization", 0)
+                seven_d = self.usage_data.get("seven_day", {}).get("utilization", 0)
+                self.status_icon.set_tooltip_text(
+                    f"Claude (desact.) — Diario:{five_h:.0f}%  Semanal:{seven_d:.0f}%"
+                )
         else:
             self.last_error = error
 
@@ -177,6 +184,7 @@ class ClaudeWatcher(Gtk.Application):
                 usage_data=self.usage_data,
                 error=self.last_error,
                 updated_at=self.last_updated,
+                stale=_stale,
             )
         return False
 

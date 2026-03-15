@@ -26,9 +26,6 @@ label {
     color: #F4F4F5; /* Zinc 100 */
     font-family: "Inter", "Cantarell", "Sans";
 }
-*:focus {
-    outline: none;
-}
 .whisper-label {
     color: #71717A; /* Zinc 500 */
     font-size: 0.75em;
@@ -68,6 +65,20 @@ menuitem:hover {
 
 _obsidian_css_provider = None
 _classic_css_provider = None
+_current_screen_provider = None
+
+
+def _set_screen_provider(provider):
+    """Swap el CSS provider activo en pantalla, removiendo el anterior."""
+    global _current_screen_provider
+    screen = Gdk.Screen.get_default()
+    if _current_screen_provider is not None and _current_screen_provider is not provider:
+        Gtk.StyleContext.remove_provider_for_screen(screen, _current_screen_provider)
+    if _current_screen_provider is not provider:
+        Gtk.StyleContext.add_provider_for_screen(
+            screen, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+        _current_screen_provider = provider
 
 class ObsidianWindow:
     def __init__(self):
@@ -103,6 +114,7 @@ class ObsidianWindow:
         gauge_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.darea = Gtk.DrawingArea()
         self.darea.set_size_request(200, 200)
+        self.darea.set_tooltip_text("Gauge de uso: cargando…")
         self.darea.connect("draw", self._on_draw)
         gauge_box.pack_start(self.darea, True, True, 0)
         main_box.pack_start(gauge_box, True, True, 0)
@@ -125,15 +137,11 @@ class ObsidianWindow:
         visual = screen.get_rgba_visual()
         if visual:
             window.set_visual(visual)
-        
+
         if _obsidian_css_provider is None:
             _obsidian_css_provider = Gtk.CssProvider()
             _obsidian_css_provider.load_from_data(_OBSIDIAN_CSS)
-            Gtk.StyleContext.add_provider_for_screen(
-                Gdk.Screen.get_default(),
-                _obsidian_css_provider,
-                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
-            )
+        _set_screen_provider(_obsidian_css_provider)
 
     def _status_markup(self, utilization):
         palette = get_palette()
@@ -238,7 +246,7 @@ class ObsidianWindow:
             
         return True
 
-    def update(self, usage_data=None, error=None, updated_at=None):
+    def update(self, usage_data=None, error=None, updated_at=None, stale=False):
         self._pulsing = False
 
         if error:
@@ -249,11 +257,15 @@ class ObsidianWindow:
             palette = get_palette()
             new_5h = usage_data.get("five_hour", {}).get("utilization", 0)
             new_7d = usage_data.get("seven_day", {}).get("utilization", 0)
-            
+
             self.target_5h = new_5h
             self.target_7d = new_7d
-            
-            self._status_label.set_markup(self._status_markup(max(new_5h, new_7d)))
+
+            markup = self._status_markup(max(new_5h, new_7d))
+            if stale:
+                markup += '\n<span foreground="#71717A" size="small">(datos desactualizados)</span>'
+            self._status_label.set_markup(markup)
+            self.darea.set_tooltip_text(f"Diario (5h): {new_5h:.0f}%  ·  Semanal (7d): {new_7d:.0f}%")
             
             color_diario = _hex(palette["accent"])
             self._m_daily["lbl"].set_markup(f'<span foreground="{color_diario}">DIARIO</span>')
@@ -345,11 +357,7 @@ class ClassicWindow:
         if _classic_css_provider is None:
             _classic_css_provider = Gtk.CssProvider()
             _classic_css_provider.load_from_data(_CLASSIC_CSS)
-            Gtk.StyleContext.add_provider_for_screen(
-                Gdk.Screen.get_default(),
-                _classic_css_provider,
-                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
-            )
+        _set_screen_provider(_classic_css_provider)
 
     def _make_section(self, label_text):
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
@@ -389,7 +397,7 @@ class ClassicWindow:
             return True
         return False
 
-    def update(self, usage_data=None, error=None, updated_at=None):
+    def update(self, usage_data=None, error=None, updated_at=None, stale=False):
         self._pulsing = False
 
         if error:
@@ -400,16 +408,18 @@ class ClassicWindow:
         if usage_data:
             five_h_util = usage_data.get("five_hour", {}).get("utilization", 0)
             seven_d_util = usage_data.get("seven_day", {}).get("utilization", 0)
-            
+
             color, text = _CLASSIC_STATUS[tier(max(five_h_util, seven_d_util))]
             self._status_label.set_markup(f'<span foreground="{color}">{text}</span>')
-            
+
             self._fill_section(self._five_h, usage_data.get("five_hour", {}))
             self._fill_section(self._seven_d, usage_data.get("seven_day", {}))
 
         if updated_at:
             delta = (datetime.now() - updated_at).total_seconds()
             ts = "Updated just now" if delta < 10 else f"Updated {updated_at.strftime('%H:%M')}"
+            if stale:
+                ts += " (desact.)"
             self._ts_label.set_text(ts)
 
     def _fill_section(self, section, data):
