@@ -512,6 +512,9 @@ class ControlWindow:
         reset_btn.connect("clicked", self._on_reset)
         outer.pack_start(reset_btn, False, False, 0)
 
+        # Permitir arrastrar la ventana desde cualquier punto
+        _make_draggable(self.window)
+
     def get_speed(self) -> float:
         return self._speed_slider.get_value()
 
@@ -703,6 +706,13 @@ class VisualTestApp(Gtk.Application):
             return False
 
         self._state.step(delta)
+        
+        # Comprobar si hemos llegado al 100% semanal para pausar el test
+        if self._state.sim_7d >= 1.0:
+            self._control_win._set_mode(MODE_PAUSED)
+            self.refresh_popup()
+            return False
+
         self._control_win.dial.queue_draw()
         self.refresh_popup()
         return True
