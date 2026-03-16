@@ -100,6 +100,8 @@ _STRINGS_ES = {
 
 _DICTS = {"en": _STRINGS_EN, "es": _STRINGS_ES}
 
+_MISSING = object()
+
 
 def t(key, **kwargs):
     """Return the translated string for `key` in the current language.
@@ -108,7 +110,8 @@ def t(key, **kwargs):
     Applies .format(**kwargs) if any kwargs are provided.
     """
     lang = get_language()
-    string = _DICTS.get(lang, _STRINGS_EN).get(key) or _STRINGS_EN.get(key, key)
+    val = _DICTS.get(lang, _STRINGS_EN).get(key, _MISSING)
+    string = _STRINGS_EN.get(key, key) if val is _MISSING else val
     if kwargs:
         string = string.format(**kwargs)
     return string
