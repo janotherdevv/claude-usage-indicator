@@ -191,13 +191,13 @@ class ObsidianWindow(BaseWindow):
             draw_obsidian_gauge(ctx, cx, cy, size, self.five_h_util, self.seven_d_util)
             display_util = max(self.five_h_util, self.seven_d_util)
 
-        t = tier(display_util)
+        tr = tier(display_util)
         r, g, b = utilization_color(display_util)
 
-        glow_count = 1 if t == 0 else (2 if t == 1 else (4 if t == 2 else 5))
-        glow_alpha = 0.08 if t == 0 else (0.12 if t == 1 else (0.15 if t == 2 else 0.22))
+        glow_count = 1 if tr == 0 else (2 if tr == 1 else (4 if tr == 2 else 5))
+        glow_alpha = 0.08 if tr == 0 else (0.12 if tr == 1 else (0.15 if tr == 2 else 0.22))
 
-        if t >= 2:
+        if tr >= 2:
             glow_alpha *= (0.8 + 0.2 * math.sin(datetime.now().timestamp() * 4))
 
         for i in range(1, glow_count + 1):

@@ -37,7 +37,7 @@ def get_theme():
     return get_settings().get("theme", "obsidian")
 
 def get_language():
-    """Returns the active UI language code ('en' | 'es'). Stub — Task 2 replaces this."""
+    """Devuelve el código de idioma activo ('en' | 'es'). Por defecto 'en'."""
     return get_settings().get("language", "en")
 
 def update_setting(key, value):
