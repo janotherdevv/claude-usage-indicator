@@ -7,50 +7,80 @@ _log = logging.getLogger("claude_usage")
 
 def update_daily_usage(value, resets_at=""):
     """
-    Ahora es un no-op informativo. 
+    Ahora es un no-op informativo.
     La persistencia ocurre automáticamente mediante el log que genera api.py.
     """
     pass
 
+def _log_files_for_last_n_days(n):
+    """Devuelve los ficheros de log relevantes para los últimos n días (más reciente primero)."""
+    log_dir = LOG_PATH.parent
+    files = []
+    now = datetime.now()
+    for i in range(n - 1, -1, -1):
+        day = now - timedelta(days=i)
+        if i == 0:
+            # El fichero activo del día actual
+            if LOG_PATH.exists():
+                files.append(LOG_PATH)
+        else:
+            # Ficheros archivados: YYYY-MM-DD.log
+            archived = log_dir / f"{day.strftime('%Y-%m-%d')}.log"
+            if archived.exists():
+                files.append(archived)
+    return files
+
+def _current_cycle_reset(pattern, log_files):
+    """Devuelve la fecha de reset del ciclo 7d activo (la última vista en los logs)."""
+    current = None
+    for log_file in log_files:
+        try:
+            with open(log_file, "r", encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    m = pattern.search(line)
+                    if m:
+                        current = m.group(3).split(",")[0]
+        except Exception:
+            pass
+    return current
+
+
 def get_weekly_history():
     """
     Extrae los picos de uso diario directamente del archivo de logs,
-    respetando el ciclo semanal actual.
+    respetando el ciclo semanal actual. Lee tanto el log activo como
+    los ficheros archivados de los últimos 7 días.
+
+    Determina primero cuál es el ciclo 7d activo y solo acumula
+    entradas que pertenecen a ese ciclo, ignorando datos de ciclos anteriores.
     """
-    if not LOG_PATH.exists():
+    pattern_usage = re.compile(
+        r"\[(\d{4}-\d{2}-\d{2}).*?7d window: (\d+\.\d+)% \(resets: ([^)]+)\)"
+    )
+
+    log_files = _log_files_for_last_n_days(7)
+    active_reset = _current_cycle_reset(pattern_usage, log_files)
+    if active_reset is None:
         return []
 
-    # Patrones para buscar en el log
-    pattern_usage = re.compile(r"\[(\d{4}-\d{2}-\d{2}).*?7d window: (\d+\.\d+)%")
-    pattern_reset = re.compile(r"Reset.*?detectado.*?Reset: ([\d\-\:T\+\.]+)")
-    
     history = {}
-    last_cycle_reset = ""
 
-    try:
-        with open(LOG_PATH, "r", encoding="utf-8", errors="replace") as f:
-            for line in f:
-                # 1. Detectar si hubo un reset de ciclo en el pasado
-                reset_match = pattern_reset.search(line)
-                if reset_match:
-                    new_reset = reset_match.group(1)
-                    # Si detectamos un reset nuevo en el log, vaciamos lo anterior
-                    if new_reset != last_cycle_reset:
-                        history = {}
-                        last_cycle_reset = new_reset
-                
-                # 2. Extraer datos de uso
-                usage_match = pattern_usage.search(line)
-                if usage_match:
-                    date_str, val_str = usage_match.groups()
+    for log_file in log_files:
+        try:
+            with open(log_file, "r", encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    m = pattern_usage.search(line)
+                    if not m:
+                        continue
+                    date_str, val_str, resets_str = m.groups()
+                    # Solo acumular entradas del ciclo activo
+                    if resets_str.split(",")[0] != active_reset:
+                        continue
                     val = float(val_str)
-                    # Guardamos el valor máximo para cada fecha
                     if date_str not in history or val > history[date_str]:
                         history[date_str] = val
-                        
-    except Exception as e:
-        _log.error(f"Error reading logs for history: {e}")
-        return []
+        except Exception as e:
+            _log.error(f"Error reading log {log_file}: {e}")
 
     # 3. Filtrar por los últimos 7 días y formatear para el gauge
     results = []
