@@ -31,6 +31,8 @@ class ClaudeWatcher(Gtk.Application):
         self._stale = False
         self.popup_window = None
         self._last_notified_tier = None
+        self._current_interval = POLL_INTERVAL
+        self._poll_timer_id = None
         
         # Inicializar Notify para notificaciones robustas en Ubuntu/Linux
         Notify.init("Claude Usage Watcher")
@@ -51,9 +53,8 @@ class ClaudeWatcher(Gtk.Application):
 
         self._menu = self._build_menu()
 
-        # Primer fetch inmediato, luego cada POLL_INTERVAL
-        self._start_fetch()
-        GLib.timeout_add_seconds(POLL_INTERVAL, self._poll_and_reschedule)
+        # Iniciar polling interno
+        self._poll_timer_id = GLib.timeout_add_seconds(self._current_interval, self._poll_and_reschedule)
 
     def _build_menu(self):
         import os as _os
@@ -249,8 +250,9 @@ class ClaudeWatcher(Gtk.Application):
         threading.Thread(target=do_fetch, daemon=True).start()
 
     def _poll_and_reschedule(self):
+        self._poll_timer_id = None
         self._start_fetch()
-        return True
+        return False
 
     def _apply_usage_data(self, data):
         """Guarda los datos obtenidos y actualiza el icono y el tooltip."""
@@ -286,6 +288,14 @@ class ClaudeWatcher(Gtk.Application):
         else:
             self.last_error = error
 
+        # Calcular próximo intervalo dinámico y reprogramar
+        self._current_interval = self._calculate_next_interval(data, error)
+        _log.info(f"Next poll scheduled in {self._current_interval} seconds")
+        
+        if self._poll_timer_id is not None:
+            GLib.source_remove(self._poll_timer_id)
+        self._poll_timer_id = GLib.timeout_add_seconds(self._current_interval, self._poll_and_reschedule)
+
         if self.popup_window and self.popup_window.window.get_visible():
             self.popup_window.update(
                 usage_data=self.usage_data,
@@ -294,6 +304,36 @@ class ClaudeWatcher(Gtk.Application):
                 stale=self._stale,
             )
         return False
+
+    def _calculate_next_interval(self, data, error):
+        from .config import MIN_POLL_INTERVAL, MAX_POLL_INTERVAL, DEFAULT_POLL_INTERVAL
+        
+        # Caso 1: Error 429 (Rate Limit) -> Backoff exponencial
+        if error and "429" in str(error):
+            # Duplicar el intervalo actual, mínimo 30m, máximo 4h
+            next_val = max(self._current_interval * 2, DEFAULT_POLL_INTERVAL)
+            return min(next_val, MAX_POLL_INTERVAL)
+        
+        # Caso 2: Error genérico (Red, etc.) -> Reintento rápido para recuperar
+        if error:
+            return 150 # 2.5 minutos para reintentar una vez pase el bache
+            
+        # Caso 3: Éxito -> Adaptar según uso
+        if not data:
+            return DEFAULT_POLL_INTERVAL
+            
+        five_h = data.get("five_hour", {}).get("utilization", 0)
+        seven_d = data.get("seven_day", {}).get("utilization", 0)
+        max_usage = max(five_h, seven_d)
+        
+        if max_usage > 90:
+            return MIN_POLL_INTERVAL # 2.5m - Muy crítico, queremos verlo bajar pronto
+        elif max_usage > 70:
+            return 450 # 7.5m - Alto riesgo
+        elif max_usage < 20:
+            return 1800 # 30m - Muy bajo uso, ahorrar tokens
+        else:
+            return DEFAULT_POLL_INTERVAL # 15m - Normal
 
     def _check_tier_notifications(self, data):
         five_h = data.get("five_hour", {}).get("utilization", 0)

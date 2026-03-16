@@ -53,8 +53,12 @@ def fetch_usage(token):
             return data, None
     except urllib.error.HTTPError as e:
         body = e.read().decode(errors="replace")
-        err = f"HTTP {e.code}: {body[:200]}"
-        _log.error(err)
+        if e.code == 429:
+            err = f"Rate Limit (429) hit! Details: {body[:200]}"
+            _log.warning(err)
+        else:
+            err = f"HTTP {e.code}: {body[:200]}"
+            _log.error(err)
         return None, err
     except urllib.error.URLError as e:
         err = f"Network error: {e.reason}"

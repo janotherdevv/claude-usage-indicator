@@ -12,7 +12,10 @@ USER_CACHE_DIR = Path.home() / ".cache" / "claude-usage-watcher"
 
 CREDENTIALS_PATH = Path.home() / ".claude" / ".credentials.json"
 API_URL = "https://api.anthropic.com/api/oauth/usage"
-POLL_INTERVAL = 1800  # segundos (30 minutos)
+DEFAULT_POLL_INTERVAL = 900   # segundos (15 minutos)
+MIN_POLL_INTERVAL = 150       # 2.5 minutos (Uso Crítico > 90%)
+MAX_POLL_INTERVAL = 7200      # 2 horas (Backoff máximo / Uso muy bajo)
+POLL_INTERVAL = DEFAULT_POLL_INTERVAL
 
 # Assets dinámicos (iconos generados)
 ASSETS_DIR = USER_CACHE_DIR / "assets"
