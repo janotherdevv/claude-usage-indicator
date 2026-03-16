@@ -64,16 +64,17 @@ class ClaudeWatcher(Gtk.Application):
     def _build_menu(self):
         import os as _os
         provider = Gtk.CssProvider()
-        # Silence GTK warnings for deprecated properties used for layout
-        _devnull = _os.open(_os.devnull, _os.O_WRONLY)
-        _saved = _os.dup(2)
-        _os.dup2(_devnull, 2)
-        try:
-            provider.load_from_data(get_menu_css())
-        finally:
-            _os.dup2(_saved, 2)
-            _os.close(_saved)
-            _os.close(_devnull)
+        if get_theme() != "desktop":
+            # Silence GTK warnings for deprecated properties used for layout
+            _devnull = _os.open(_os.devnull, _os.O_WRONLY)
+            _saved = _os.dup(2)
+            _os.dup2(_devnull, 2)
+            try:
+                provider.load_from_data(get_menu_css())
+            finally:
+                _os.dup2(_saved, 2)
+                _os.close(_saved)
+                _os.close(_devnull)
 
         menu = Gtk.Menu()
         menu.get_style_context().add_provider(provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
@@ -137,6 +138,11 @@ class ClaudeWatcher(Gtk.Application):
         item_classic.set_active(current_theme == "classic")
         item_classic.connect("activate", self._on_change_theme, "classic")
         design_menu.append(item_classic)
+
+        item_desktop = Gtk.RadioMenuItem(label=t("menu.desktop"), group=item_obsidian)
+        item_desktop.set_active(current_theme == "desktop")
+        item_desktop.connect("activate", self._on_change_theme, "desktop")
+        design_menu.append(item_desktop)
 
         menu.append(item_design)
 
