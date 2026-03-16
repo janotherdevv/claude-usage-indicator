@@ -6,7 +6,8 @@ from datetime import datetime
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GLib, Gdk, Gio
+gi.require_version('Notify', '0.7')
+from gi.repository import Gtk, GLib, Gdk, Gio, Notify
 
 # Desactivar advertencias de StatusIcon ya que GTK3 lo considera deprecado, 
 # pero sigue siendo la forma estándar en muchos escritorios Linux.
@@ -30,7 +31,11 @@ class ClaudeWatcher(Gtk.Application):
         self._stale = False
         self.popup_window = None
         self._last_notified_tier = None
-        _log.debug("ClaudeWatcher initialized")
+        
+        # Inicializar Notify para notificaciones robustas en Ubuntu/Linux
+        Notify.init("Claude Usage Watcher")
+        Notify.set_app_name("com.claudeusage.watcher")
+        _log.debug("ClaudeWatcher initialized with Notify support")
 
     def do_activate(self):
         # Mantenemos la aplicación viva aunque no haya ventanas abiertas
@@ -293,42 +298,77 @@ class ClaudeWatcher(Gtk.Application):
     def _check_tier_notifications(self, data):
         five_h = data.get("five_hour", {}).get("utilization", 0)
         seven_d = data.get("seven_day", {}).get("utilization", 0)
-        current_tier = tier(max(five_h, seven_d))
+        max_util = max(five_h, seven_d)
+        current_tier = tier(max_util)
 
         if self._last_notified_tier is None:
-            # Primera ejecución, establecemos baseline
+            # Baseline: Always notify on startup to confirm it's working (as requested)
             self._last_notified_tier = current_tier
-        elif current_tier != self._last_notified_tier:
+            self._send_tier_notification(current_tier, five_h, seven_d, data)
+        elif current_tier > self._last_notified_tier:
+            # Increased risk level
             self._send_tier_notification(current_tier, five_h, seven_d, data)
             self._last_notified_tier = current_tier
+        elif current_tier < self._last_notified_tier:
+            # Decreased risk level: 
+            # 1. Hysteresis (2%) to avoid flapping.
+            # 2. Only notify if recovering to 'Normal' (Tier 0).
+            thresholds = [0, 60, 85, 95, 100]
+            old_threshold = thresholds[self._last_notified_tier]
+            
+            if max_util < (old_threshold - 2.0):
+                if current_tier == 0:
+                    self._send_tier_notification(current_tier, five_h, seven_d, data)
+                self._last_notified_tier = current_tier
 
     def _send_tier_notification(self, new_tier, five_h, seven_d, data):
         try:
-            notif = Gio.Notification.new("Claude Usage Watcher")
-            reset_str = self._best_reset_time(five_h, seven_d, data)
-            max_util = max(five_h, seven_d)
+            reset_str = str(self._best_reset_time(five_h, seven_d, data) or "unknown")
+            max_util = max(float(five_h or 0), float(seven_d or 0))
 
-            if max_util >= 100:
+            summary = "Claude Usage Watcher"
+            if new_tier >= 4:
+                body = t("notif.limit", pct=f"{max_util:.0f}", reset=reset_str)
+            elif new_tier == 3:
                 body = t("notif.extreme", pct=f"{max_util:.0f}", reset=reset_str)
-            elif new_tier == 0:
-                body = t("notif.normal", pct=f"{max_util:.0f}")
-            elif new_tier == 1:
-                body = t("notif.warning", pct=f"{max_util:.0f}", reset=reset_str)
             elif new_tier == 2:
                 body = t("notif.critical", pct=f"{max_util:.0f}", reset=reset_str)
-            else:  # tier 3 — extreme
-                body = t("notif.extreme", pct=f"{max_util:.0f}", reset=reset_str)
+            elif new_tier == 1:
+                body = t("notif.warning", pct=f"{max_util:.0f}", reset=reset_str)
+            else: # new_tier == 0
+                body = t("notif.normal", pct=f"{max_util:.0f}")
 
-            notif.set_body(body)
-            notif.set_priority(
-                Gio.NotificationPriority.URGENT if new_tier >= 3
-                else Gio.NotificationPriority.HIGH if new_tier == 2
-                else Gio.NotificationPriority.NORMAL
-            )
-            self.send_notification("usage-alert", notif)
+            # Ensure body is a valid string
+            body = str(body)
+
+            # Icono para la notificación
+            import os
+            icon_path = os.path.expanduser("~/.cache/claude-usage-watcher/assets/icon_current.png")
+            if not os.path.exists(icon_path):
+                # Fallback to a standard system icon name if our custom one isn't ready
+                icon_path = "dialog-information"
+
+            _log.debug(f"Sending notification: summary='{summary}', body='{body}', icon='{icon_path}', urgency_tier={new_tier}")
+            
+            # Create notification. All args MUST be strings.
+            notif = Notify.Notification.new(summary, body, icon_path)
+            
+            # IMPORTANTE: Para evitar el warning de Variant NULL en Ubuntu/Gnome,
+            # establecemos explícitamente el nombre de la entrada de escritorio.
+            notif.set_hint("desktop-entry", GLib.Variant.new_string("com.claudeusage.watcher"))
+            
+            # Mapeo de prioridades para Notify (libnotify)
+            urgency = Notify.Urgency.NORMAL
+            if new_tier >= 3:
+                urgency = Notify.Urgency.CRITICAL
+            elif new_tier == 2:
+                urgency = Notify.Urgency.LOW # Warning/Normal
+            
+            notif.set_urgency(urgency)
+            notif.show()
         except Exception as e:
             # Las notificaciones son "best effort"
-            print(f"Warning: Failed to send notification: {e}", file=sys.stderr)
+            _log.warning(f"Failed to send notification via Notify: {e}")
 
     def _best_reset_time(self, five_h, seven_d, data):
         if five_h >= seven_d:

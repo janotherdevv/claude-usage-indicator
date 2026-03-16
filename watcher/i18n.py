@@ -50,6 +50,7 @@ _STRINGS_EN = {
     "notif.warning":  "High usage \u2014 {pct}%  \u00b7  resets {reset}",
     "notif.critical": "Critical usage \u2014 {pct}%!  \u00b7  resets {reset}",
     "notif.extreme":  "EXTREME usage \u2014 {pct}%!!  \u00b7  resets {reset}",
+    "notif.limit":    "LIMIT REACHED \u2014 {pct}%!  \u00b7  resets {reset}",
     # Day names
     "day.0": "M",
     "day.1": "T",
@@ -76,6 +77,7 @@ _STRINGS_EN_FUNNY = {
     "notif.warning":  "Whoa there! {pct}% usage \u2014 reset at {reset}",
     "notif.critical": "PANIC! {pct}% used! \u2014 reset: {reset}",
     "notif.extreme":  "BYE BYE OPUS! {pct}%!! \u2014 reset: {reset}",
+    "notif.limit":    "LIMIT REACHED! {pct}%!! \u2014 reset: {reset}",
 }
 
 _STRINGS_ES = {
@@ -128,6 +130,7 @@ _STRINGS_ES = {
     "notif.warning":  "Uso alto \u2014 {pct}%  \u00b7  reinicia {reset}",
     "notif.critical": "Uso cr\u00edtico \u2014 {pct}%!  \u00b7  reinicia {reset}",
     "notif.extreme":  "Uso EXTREMO \u2014 {pct}%!!  \u00b7  reinicia {reset}",
+    "notif.limit":    "L\u00cdMITE ALCANZADO \u2014 {pct}%!  \u00b7  reinicia {reset}",
     # Day names
     "day.0": "L",
     "day.1": "M",
@@ -154,6 +157,7 @@ _STRINGS_ES_FUNNY = {
     "notif.warning":  "¡Eh! Un {pct}% usado \u2014 reinicia a las {reset}",
     "notif.critical": "¡P\u00c1NICO! {pct}% gastado \u2014 reinicia: {reset}",
     "notif.extreme":  "¡ADI\u00d3S OPUS! {pct}%!! \u2014 reinicia: {reset}",
+    "notif.limit":    "¡GAME OVER! {pct}% gastado \u2014 reinicia: {reset}",
 }
 
 _DICTS = {

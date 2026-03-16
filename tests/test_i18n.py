@@ -28,7 +28,8 @@ class TestI18n(unittest.TestCase):
         original = m._STRINGS_ES.get('menu.quit')
         del m._STRINGS_ES['menu.quit']
         try:
-            with patch('watcher.i18n.get_language', return_value='es'):
+            with patch('watcher.i18n.get_language', return_value='es'), \
+                 patch('watcher.i18n.get_style', return_value='serious'):
                 result = m.t('menu.quit')
                 self.assertEqual(result, 'Quit')
         finally:

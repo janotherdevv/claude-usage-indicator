@@ -3,14 +3,14 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AUTOSTART_DIR="$HOME/.config/autostart"
-DESKTOP_FILE="$AUTOSTART_DIR/claude-usage-watcher.desktop"
+DESKTOP_FILE="$AUTOSTART_DIR/com.claudeusage.watcher.desktop"
 
 echo "Installing Claude Usage Watcher..."
 
 # Check dependencies
-if ! python3 -c "import gi; gi.require_version('Gtk', '3.0'); from gi.repository import Gtk" 2>/dev/null || ! python3 -c "import cairo" 2>/dev/null; then
+if ! python3 -c "import gi; gi.require_version('Gtk', '3.0'); from gi.repository import Gtk" 2>/dev/null || ! python3 -c "import cairo" 2>/dev/null || ! python3 -c "import gi; gi.require_version('Notify', '0.7')" 2>/dev/null; then
     echo "Missing dependencies. Installing..."
-    sudo apt install -y python3-gi gir1.2-gtk-3.0 python3-cairo
+    sudo apt install -y python3-gi gir1.2-gtk-3.0 python3-cairo gir1.2-notify-0.7
 fi
 
 # Install the package in editable mode or normally

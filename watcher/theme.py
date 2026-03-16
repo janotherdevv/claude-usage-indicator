@@ -42,7 +42,9 @@ _ICON_NAMES = ["icon_ok.png", "icon_warn.png", "icon_crit.png"]
 
 
 def tier(utilization):
-    """0=normal(<60%) · 1=warning(60-85%) · 2=critical(85-95%) · 3=extreme(≥95%)."""
+    """0=normal(<60%) · 1=warning(60-85%) · 2=critical(85-95%) · 3=extreme(95-100%) · 4=limit(≥100%)."""
+    if utilization >= 100:
+        return 4
     if utilization >= 95:
         return 3
     if utilization >= 85:
