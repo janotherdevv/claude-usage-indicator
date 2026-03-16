@@ -416,10 +416,10 @@ class ClassicWindow(BaseWindow):
         self._status_label.set_max_width_chars(38)
         box.pack_start(self._status_label, False, False, 0)
 
-        self._five_h = self._make_section("5h")
+        self._five_h = self._make_section(t("label.daily"))
         box.pack_start(self._five_h["vbox"], False, False, 0)
 
-        self._seven_d = self._make_section("7d")
+        self._seven_d = self._make_section(t("label.weekly"))
         self._seven_d["history_area"].connect("draw", self._on_draw_7d_history)
         box.pack_start(self._seven_d["vbox"], False, False, 0)
 
