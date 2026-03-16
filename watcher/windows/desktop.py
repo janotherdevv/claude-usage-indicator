@@ -1,7 +1,7 @@
 import math
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GLib
+from gi.repository import Gtk
 
 import cairo
 
@@ -50,7 +50,9 @@ def _draw_gauge(ctx, widget, cx, cy, r, utilization):
     ctx.line_to(nx, ny)
     ctx.stroke()
 
-    # --- Center dot ---
+    # --- Center dot (explicit color so it's independent of needle draw order) ---
+    ur, ug, ub = utilization_color(utilization)
+    ctx.set_source_rgba(ur, ug, ub, 1.0)
     ctx.arc(cx, cy, r * 0.06, 0, 2 * math.pi)
     ctx.fill()
 
