@@ -21,17 +21,27 @@ def _draw_gauge(ctx, widget, cx, cy, r, utilization):
       - Needle angle: π + (u/100)*π; endpoint uses (cx + r*cos(a), cy + r*sin(a))
     """
     style = widget.get_style_context()
-    bg = style.get_background_color(Gtk.StateFlags.NORMAL)
     fg = style.get_color(Gtk.StateFlags.NORMAL)
 
     LINE_W = r * 0.15
 
-    # --- Background arc (full semicircle, system theme color) ---
-    ctx.set_source_rgba(bg.red, bg.green, bg.blue, 0.40)
+    # --- Background arc (full semicircle) ---
+    # Use fg at low opacity so it reads on both dark and light GTK themes.
+    # bg color from get_background_color() is unreliable (often transparent
+    # on DrawingArea), so relying on it would make the arc invisible on light themes.
+    ctx.set_source_rgba(fg.red, fg.green, fg.blue, 0.15)
     ctx.set_line_width(LINE_W)
     ctx.set_line_cap(cairo.LINE_CAP_ROUND)
     ctx.arc(cx, cy, r, math.pi, 2 * math.pi)
     ctx.stroke()
+
+    # --- Dial face fill (very subtle semicircle, gives the gauge depth) ---
+    r_face = r - LINE_W * 0.55
+    ctx.set_source_rgba(fg.red, fg.green, fg.blue, 0.035)
+    ctx.move_to(cx, cy)
+    ctx.arc(cx, cy, r_face, math.pi, 2 * math.pi)
+    ctx.line_to(cx, cy)
+    ctx.fill()
 
     # --- Reference tick marks at 25%, 50%, 75% (inside the gauge face) ---
     ctx.set_line_width(r * 0.025)
@@ -39,7 +49,7 @@ def _draw_gauge(ctx, widget, cx, cy, r, utilization):
     for frac in (0.25, 0.5, 0.75):
         a = math.pi + frac * math.pi
         cos_a, sin_a = math.cos(a), math.sin(a)
-        ctx.set_source_rgba(fg.red, fg.green, fg.blue, 0.18)
+        ctx.set_source_rgba(fg.red, fg.green, fg.blue, 0.22)
         ctx.move_to(cx + r * 0.62 * cos_a, cy + r * 0.62 * sin_a)
         ctx.line_to(cx + r * 0.79 * cos_a, cy + r * 0.79 * sin_a)
         ctx.stroke()
@@ -74,7 +84,7 @@ def _draw_gauge(ctx, widget, cx, cy, r, utilization):
     # --- Percentage text (in lower dial face, above pivot) ---
     ctx.set_source_rgba(fg.red, fg.green, fg.blue, 0.9)
     ctx.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
-    ctx.set_font_size(r * 0.28)
+    ctx.set_font_size(r * 0.30)
     text = f"{utilization:.0f}%"
     extents = ctx.text_extents(text)
     ctx.move_to(cx - extents.width / 2 - extents.x_bearing, cy - r * 0.22)
