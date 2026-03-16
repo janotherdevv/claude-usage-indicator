@@ -8,6 +8,8 @@ from gi.repository import Gtk, Gdk, GLib, GObject
 
 from .theme import utilization_color
 from .window import UsageWindow
+from .icons import render_pixbuf
+from .i18n import t
 
 
 # ── Simulation State ──────────────────────────────────────────────────────────
@@ -599,6 +601,11 @@ class VisualTestApp(Gtk.Application):
         self._state = SimulationState()
         self._control_win = ControlWindow(self._state, self)
 
+        # Tray Icon para el test visual
+        self.status_icon = Gtk.StatusIcon()
+        self.status_icon.set_from_pixbuf(render_pixbuf(0.0, 0.0))
+        self.status_icon.set_tooltip_text("Visual Test Mode")
+
         # Popup stays visible regardless of focus
         self._popup = UsageWindow(auto_hide=False)
         self._popup.window.connect("delete-event", lambda w, e: self.quit())
@@ -639,8 +646,16 @@ class VisualTestApp(Gtk.Application):
         return False
 
     def refresh_popup(self):
+        data = self._state.to_usage_data()
+        five_h = data["five_hour"]["utilization"]
+        seven_d = data["seven_day"]["utilization"]
+        
+        # Actualizar icono del tray
+        self.status_icon.set_from_pixbuf(render_pixbuf(five_h, seven_d))
+        self.status_icon.set_tooltip_text(f"Visual Test: {five_h:.0f}% / {seven_d:.0f}%")
+        
         self._popup.update(
-            usage_data=self._state.to_usage_data(),
+            usage_data=data,
             history=self._state.get_simulated_history()
         )
 
