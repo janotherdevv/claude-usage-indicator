@@ -79,35 +79,44 @@ def draw_obsidian_gauge(ctx, x, y, size, five_h_util, seven_d_util, is_tray=Fals
             
             mr, mg, mb = utilization_color(value)
             
-            # Dibujar flechita
+            # Posición base en el arco
             ax = x + outer_radius * math.cos(angle)
             ay = y + outer_radius * math.sin(angle)
             
-            dist_base = outer_radius + (size * 0.035)
-            bx = x + dist_base * math.cos(angle)
-            by = y + dist_base * math.sin(angle)
-            
-            wing_size = size * 0.022
-            perp_angle = angle + math.pi / 2
-            
-            ctx.set_source_rgba(mr, mg, mb, 0.9)
-            ctx.move_to(ax, ay)
-            ctx.line_to(bx + wing_size * math.cos(perp_angle), by + wing_size * math.sin(perp_angle))
-            ctx.line_to(bx - wing_size * math.cos(perp_angle), by - wing_size * math.sin(perp_angle))
-            ctx.close_path()
+            # 1. Agujero de fondo (para "cortar" la barra)
+            ctx.new_path()
+            ctx.arc(ax, ay, size * 0.022, 0, 2 * math.pi)
+            ctx.set_source_rgb(0.035, 0.035, 0.043) # Obsidian bg
             ctx.fill()
             
-            # Dibujar letra
+            # 2. Nodo / cuenta de historial (minimalista y brillante)
+            ctx.new_path()
+            ctx.arc(ax, ay, size * 0.010, 0, 2 * math.pi)
+            ctx.set_source_rgba(mr, mg, mb, 1.0)
+            ctx.fill()
+            
+            # 3. Línea conector sutil
+            dist_base = outer_radius + (size * 0.030)
+            line_end = outer_radius + (size * 0.055)
+            
+            ctx.new_path()
+            ctx.set_line_width(size * 0.003)
+            ctx.set_source_rgba(mr, mg, mb, 0.4)
+            ctx.move_to(x + dist_base * math.cos(angle), y + dist_base * math.sin(angle))
+            ctx.line_to(x + line_end * math.cos(angle), y + line_end * math.sin(angle))
+            ctx.stroke()
+            
+            # 4. Dibujar letra flotante con estilo depurado
             day_letter = t(f"day.{weekday}")
             ctx.select_font_face("Inter", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
-            ctx.set_font_size(size * 0.045)
+            ctx.set_font_size(size * 0.035)
             
-            dist_text = dist_base + (size * 0.045)
+            dist_text = line_end + (size * 0.025)
             tx = x + dist_text * math.cos(angle)
             ty = y + dist_text * math.sin(angle)
             
             extents = ctx.text_extents(day_letter)
-            ctx.set_source_rgba(mr, mg, mb, 1.0)
+            ctx.set_source_rgba(mr, mg, mb, 0.95)
             ctx.move_to(tx - extents.width/2 - extents.x_bearing, ty + extents.height/2)
             ctx.show_text(day_letter)
             ctx.restore()
