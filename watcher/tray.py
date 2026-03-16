@@ -14,7 +14,7 @@ warnings.filterwarnings("ignore", ".*StatusIcon.*", DeprecationWarning)
 
 from .config import POLL_INTERVAL, _log, get_theme, get_language, get_style, update_setting
 from .i18n import t
-from .theme import tier
+from .theme import tier, get_menu_css
 from .icons import render_pixbuf
 from .api import read_token, fetch_usage, format_reset_time
 from .window import UsageWindow
@@ -52,22 +52,20 @@ class ClaudeWatcher(Gtk.Application):
 
     def _build_menu(self):
         import os as _os
-        _submenu_css = b"menu { -GtkMenu-double-arrows: 0; } menu > arrow { min-height: 0; min-width: 0; opacity: 0; }"
-
-        def _make_submenu_provider():
-            prov = Gtk.CssProvider()
-            devnull = _os.open(_os.devnull, _os.O_WRONLY)
-            saved = _os.dup(2)
-            _os.dup2(devnull, 2)
-            try:
-                prov.load_from_data(_submenu_css)
-            finally:
-                _os.dup2(saved, 2)
-                _os.close(saved)
-                _os.close(devnull)
-            return prov
+        provider = Gtk.CssProvider()
+        # Silence GTK warnings for deprecated properties used for layout
+        _devnull = _os.open(_os.devnull, _os.O_WRONLY)
+        _saved = _os.dup(2)
+        _os.dup2(_devnull, 2)
+        try:
+            provider.load_from_data(get_menu_css())
+        finally:
+            _os.dup2(_saved, 2)
+            _os.close(_saved)
+            _os.close(_devnull)
 
         menu = Gtk.Menu()
+        menu.get_style_context().add_provider(provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         item_refresh = Gtk.MenuItem(label=t("menu.refresh"))
         item_refresh.connect("activate", self._on_refresh_now)
@@ -76,9 +74,9 @@ class ClaudeWatcher(Gtk.Application):
 
         # ── Language submenu ──────────────────────────────────
         lang_menu = Gtk.Menu()
+        lang_menu.get_style_context().add_provider(provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         item_language = Gtk.MenuItem(label=t("menu.language"))
         item_language.set_submenu(lang_menu)
-        lang_menu.get_style_context().add_provider(_make_submenu_provider(), Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         current_lang = get_language()
         item_english = Gtk.RadioMenuItem(label=t("menu.english"))
@@ -95,9 +93,9 @@ class ClaudeWatcher(Gtk.Application):
 
         # ── Style submenu ──────────────────────────────────
         style_menu = Gtk.Menu()
+        style_menu.get_style_context().add_provider(provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         item_style = Gtk.MenuItem(label=t("menu.style"))
         item_style.set_submenu(style_menu)
-        style_menu.get_style_context().add_provider(_make_submenu_provider(), Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         current_style = get_style()
         item_serious = Gtk.RadioMenuItem(label=t("menu.serious"))
@@ -114,9 +112,9 @@ class ClaudeWatcher(Gtk.Application):
 
         # ── Design submenu ────────────────────────────────────
         design_menu = Gtk.Menu()
+        design_menu.get_style_context().add_provider(provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         item_design = Gtk.MenuItem(label=t("menu.design"))
         item_design.set_submenu(design_menu)
-        design_menu.get_style_context().add_provider(_make_submenu_provider(), Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         current_theme = get_theme()
         item_obsidian = Gtk.RadioMenuItem(label=t("menu.obsidian"))

@@ -52,6 +52,29 @@ def tier(utilization):
     return 0
 
 
+def get_menu_css():
+    """Returns CSS to force a dark theme for the tray context menu."""
+    # Zinc 950 (#09090B) for background, Zinc 100 (#F4F4F5) for text
+    css = """
+        menu, .menu, menuitem {
+            background-color: #09090B;
+            color: #F4F4F5;
+            border: 1px solid #27272A;
+        }
+        menuitem:hover {
+            background-color: #18181B;
+            color: #FFFFFF;
+        }
+        menu separator {
+            background-color: #27272A;
+            margin: 4px 0;
+        }
+        /* Suppress arrows in submenus */
+        menu { -GtkMenu-double-arrows: 0; }
+        menu > arrow { min-height: 0; min-width: 0; opacity: 0; }
+    """
+    return css.encode()
+
 def get_palette():
     if get_theme() == "classic":
         return _PALETTE_CLASSIC

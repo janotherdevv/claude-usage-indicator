@@ -9,7 +9,7 @@ A lightweight system tray application for Linux (Ubuntu/GNOME) that displays rea
 ## Features
 
 - **Two themes:** Obsidian (animated concentric rings with glow) and Classic (progress bars). Switch between them via the right-click context menu — preference is saved across sessions.
-- **EN/ES language support:** Switch between English and Español via the right-click context menu. All visible text updates immediately — menu labels, tooltips, popup window, and notifications.
+- **EN/ES & Style support:** Switch between English/Español and "Serious"/"Funny" text styles via the right-click context menu. All visible text updates immediately — menu labels, tooltips, popup window, and notifications.
 - **Real-time monitoring:** Displays Claude API usage for both the 5-hour and 7-day windows.
 - **Progressive colors:** Tray icon and popup colors interpolate continuously from green (0%) → amber (70%) → red (95%) → purple (100%).
 - **Dynamic tray icon:** Concentric arcs rendered in memory via Cairo — no disk I/O at runtime.
@@ -21,7 +21,7 @@ A lightweight system tray application for Linux (Ubuntu/GNOME) that displays rea
 Requires Python 3 and GTK 3 introspection libraries. On Ubuntu/Debian:
 
 ```bash
-sudo apt install python3-gi gir1.2-gtk-3.0 python3-cairo
+sudo apt install python3-gi gir1.2-gtk-3.0 python3-cairo gir1.2-appindicator3-0.1
 ```
 
 ## Configuration
@@ -72,7 +72,8 @@ claude-usage-watcher &
 ### Tray interaction
 
 - **Left-click** the tray icon to open the usage popup.
-- **Right-click** to open the context menu (refresh, switch language, switch theme, quit).
+- **Right-click** to open the context menu (refresh, switch language, switch style, switch theme, quit).
+- **Dark Theme:** Menus are forced to a dark theme for visual consistency across desktop environments.
 
 ### Logs
 
@@ -90,8 +91,8 @@ claude-usage-watcher/
 ├── install.sh
 └── watcher/
     ├── config.py               ← paths, constants, settings, shared logger
-    ├── i18n.py                 ← EN/ES string dicts and t() translation function
-    ├── theme.py                ← tier thresholds, progressive colors, CSS helpers
+    ├── i18n.py                 ← translation engine with EN/ES and style support
+    ├── theme.py                ← tier thresholds, colors, CSS helpers, menu theme
     ├── icons.py                ← Cairo rendering (tray icon + gauge)
     ├── api.py                  ← token reading, API fetch, time formatting
     ├── window.py               ← popup UI (ObsidianWindow, ClassicWindow)
