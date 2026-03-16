@@ -157,6 +157,7 @@ class ClaudeWatcher(Gtk.Application):
         update_setting("language", lang)
 
         # Rebuild menu (also refreshes self._item_refresh reference)
+        self._menu.destroy()
         self._menu = self._build_menu()
 
         # Destroy popup so construction-time strings are recreated in new language
@@ -230,7 +231,6 @@ class ClaudeWatcher(Gtk.Application):
         if hasattr(self, "_item_refresh"):
             self._item_refresh.set_sensitive(True)
 
-        self._stale = False
         if not error:
             self._apply_usage_data(data)
             self._check_tier_notifications(data)
