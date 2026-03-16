@@ -436,7 +436,7 @@ class ClaudeWatcher(Gtk.Application):
             self.popup_window.window.destroy()
         self.popup_window = UsageWindow()
         GLib.idle_add(self._position_popup)
-        
+
         # Si los datos están frescos, los mostramos ya
         if self.last_updated and (datetime.now() - self.last_updated).total_seconds() < 60:
             self.popup_window.update(

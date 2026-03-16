@@ -1,6 +1,9 @@
 import io
 import math
 import cairo
+import gi
+gi.require_version('Gdk', '3.0')
+gi.require_version('GdkPixbuf', '2.0')
 from gi.repository import GdkPixbuf, Gdk
 
 from .theme import tier, utilization_color, classic_tier_color
