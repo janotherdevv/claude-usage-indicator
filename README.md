@@ -9,6 +9,7 @@ A lightweight system tray application for Linux (Ubuntu/GNOME) that displays rea
 ## Features
 
 - **Two themes:** Obsidian (animated concentric rings with glow) and Classic (progress bars). Switch between them via the right-click context menu — preference is saved across sessions.
+- **EN/ES language support:** Switch between English and Español via the right-click context menu. All visible text updates immediately — menu labels, tooltips, popup window, and notifications.
 - **Real-time monitoring:** Displays Claude API usage for both the 5-hour and 7-day windows.
 - **Progressive colors:** Tray icon and popup colors interpolate continuously from green (0%) → amber (70%) → red (95%) → purple (100%).
 - **Dynamic tray icon:** Concentric arcs rendered in memory via Cairo — no disk I/O at runtime.
@@ -71,7 +72,7 @@ claude-usage-watcher &
 ### Tray interaction
 
 - **Left-click** the tray icon to open the usage popup.
-- **Right-click** to open the context menu (refresh, switch theme, quit).
+- **Right-click** to open the context menu (refresh, switch language, switch theme, quit).
 
 ### Logs
 
@@ -89,6 +90,7 @@ claude-usage-watcher/
 ├── install.sh
 └── watcher/
     ├── config.py               ← paths, constants, settings, shared logger
+    ├── i18n.py                 ← EN/ES string dicts and t() translation function
     ├── theme.py                ← tier thresholds, progressive colors, CSS helpers
     ├── icons.py                ← Cairo rendering (tray icon + gauge)
     ├── api.py                  ← token reading, API fetch, time formatting
