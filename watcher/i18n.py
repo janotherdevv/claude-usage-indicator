@@ -1,4 +1,4 @@
-from .config import get_language
+from .config import get_language, get_style
 
 _STRINGS_EN = {
     # Menu
@@ -9,6 +9,9 @@ _STRINGS_EN = {
     "menu.language":    "Language",
     "menu.english":     "English",
     "menu.spanish":     "Español",
+    "menu.style":       "Style",
+    "menu.serious":     "Serious",
+    "menu.funny":       "Funny",
     "menu.open_claude": "Open claude.ai",
     "menu.quit":        "Quit",
     # Tooltips (tray icon)
@@ -57,6 +60,24 @@ _STRINGS_EN = {
     "day.6": "S",
 }
 
+_STRINGS_EN_FUNNY = {
+    **_STRINGS_EN,
+    "status.safe_label":    "CHILLIN'",
+    "status.safe_desc":     "Claude is bored, ask something!",
+    "status.warning_label": "HOT STUFF",
+    "status.warning_desc":  "Maybe start wrapping up...",
+    "status.critical_label":"PANIC MODE",
+    "status.critical_desc": "The tokens are screaming",
+    "status.extreme_label": "MELTDOWN",
+    "status.extreme_desc":  "Start parking Opus, mate...",
+    "status.limit_label":   "RIP TOKENS",
+    "status.limit_desc":    "Go outside and touch some grass",
+    "notif.normal":   "Phew! We're back \u2014 {pct}%",
+    "notif.warning":  "Whoa there! {pct}% usage \u2014 reset at {reset}",
+    "notif.critical": "PANIC! {pct}% used! \u2014 reset: {reset}",
+    "notif.extreme":  "BYE BYE OPUS! {pct}%!! \u2014 reset: {reset}",
+}
+
 _STRINGS_ES = {
     # Menu
     "menu.refresh":     "Actualizar",
@@ -66,6 +87,9 @@ _STRINGS_ES = {
     "menu.language":    "Idioma",
     "menu.english":     "English",
     "menu.spanish":     "Espa\u00f1ol",
+    "menu.style":       "Estilo",
+    "menu.serious":     "Serio",
+    "menu.funny":       "Gracioso",
     "menu.open_claude": "Abrir claude.ai",
     "menu.quit":        "Salir",
     # Tooltips
@@ -83,7 +107,7 @@ _STRINGS_ES = {
     "status.critical_desc": "Capacidad de uso cr\u00edtica",
     "status.extreme_label": "EXTREMO",
     "status.extreme_desc":  "L\u00edmite casi agotado",
-    "status.limit_label":   "L\u00cdMITE ALCANZADO",
+    "status.limit_label":   "L\u00CDMITE ALCANZADO",
     "status.limit_desc":    "Tokens completamente agotados",
     # Obsidian popup labels
     "label.daily":          "DIARIO",
@@ -114,20 +138,56 @@ _STRINGS_ES = {
     "day.6": "D",
 }
 
-_DICTS = {"en": _STRINGS_EN, "es": _STRINGS_ES}
+_STRINGS_ES_FUNNY = {
+    **_STRINGS_ES,
+    "status.safe_label":    "RELAX TOTAL",
+    "status.safe_desc":     "Claude est\u00e1 de vacaciones, dale ca\u00f1a",
+    "status.warning_label": "CUIDADITO",
+    "status.warning_desc":  "Ve aparcando a OPUS...",
+    "status.critical_label":"P\u00c1NICO",
+    "status.critical_desc": "Los tokens est\u00e1n pidiendo clemencia",
+    "status.extreme_label": "¡FUEGO!",
+    "status.extreme_desc":  "¡Dile adi\u00f3s a tus prompts!",
+    "status.limit_label":   "GAME OVER",
+    "status.limit_desc":    "Aprovecha para ver la luz del sol",
+    "notif.normal":   "¡Uff! Ya podemos respirar \u2014 {pct}%",
+    "notif.warning":  "¡Eh! Un {pct}% usado \u2014 reinicia a las {reset}",
+    "notif.critical": "¡P\u00c1NICO! {pct}% gastado \u2014 reinicia: {reset}",
+    "notif.extreme":  "¡ADI\u00d3S OPUS! {pct}%!! \u2014 reinicia: {reset}",
+}
+
+_DICTS = {
+    ("en", "serious"): _STRINGS_EN,
+    ("en", "funny"):   _STRINGS_EN_FUNNY,
+    ("es", "serious"): _STRINGS_ES,
+    ("es", "funny"):   _STRINGS_ES_FUNNY,
+}
 
 _MISSING = object()
 
 
 def t(key, **kwargs):
-    """Return the translated string for `key` in the current language.
+    """Return the translated string for `key` in the current language and style.
 
-    Falls back to EN if the key is missing in the active language dict.
+    Falls back to EN/Serious if the key is missing in the active dict.
     Applies .format(**kwargs) if any kwargs are provided.
     """
     lang = get_language()
-    val = _DICTS.get(lang, _STRINGS_EN).get(key, _MISSING)
+    style = get_style()
+    
+    # Try current lang + style
+    val = _DICTS.get((lang, style), _STRINGS_EN).get(key, _MISSING)
+    
+    # Fallback to current lang + serious
+    if val is _MISSING and style != "serious":
+        val = _DICTS.get((lang, "serious"), _STRINGS_EN).get(key, _MISSING)
+    
+    # Fallback to EN + serious
     string = _STRINGS_EN.get(key, key) if val is _MISSING else val
+    
     if kwargs:
-        string = string.format(**kwargs)
+        try:
+            string = string.format(**kwargs)
+        except KeyError:
+            pass
     return string

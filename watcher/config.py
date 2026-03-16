@@ -23,7 +23,7 @@ CONFIG_PATH = USER_DATA_DIR / "settings.json"
 
 def get_settings():
     import json
-    defaults = {"theme": "obsidian", "language": "en"}
+    defaults = {"theme": "obsidian", "language": "en", "style": "serious"}
     if not CONFIG_PATH.exists():
         return defaults
     try:
@@ -39,6 +39,10 @@ def get_theme():
 def get_language():
     """Devuelve el código de idioma activo ('en' | 'es'). Por defecto 'en'."""
     return get_settings().get("language", "en")
+
+def get_style():
+    """Devuelve el estilo de los textos ('serious' | 'funny')."""
+    return get_settings().get("style", "serious")
 
 def update_setting(key, value):
     import json

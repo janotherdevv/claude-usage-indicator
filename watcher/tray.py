@@ -12,7 +12,7 @@ from gi.repository import Gtk, GLib, Gdk, Gio
 # pero sigue siendo la forma estándar en muchos escritorios Linux.
 warnings.filterwarnings("ignore", ".*StatusIcon.*", DeprecationWarning)
 
-from .config import POLL_INTERVAL, _log, get_theme, get_language, update_setting
+from .config import POLL_INTERVAL, _log, get_theme, get_language, get_style, update_setting
 from .i18n import t
 from .theme import tier
 from .icons import render_pixbuf
@@ -93,6 +93,25 @@ class ClaudeWatcher(Gtk.Application):
 
         menu.append(item_language)
 
+        # ── Style submenu ──────────────────────────────────
+        style_menu = Gtk.Menu()
+        item_style = Gtk.MenuItem(label=t("menu.style"))
+        item_style.set_submenu(style_menu)
+        style_menu.get_style_context().add_provider(_make_submenu_provider(), Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
+        current_style = get_style()
+        item_serious = Gtk.RadioMenuItem(label=t("menu.serious"))
+        item_serious.set_active(current_style == "serious")
+        item_serious.connect("activate", self._on_change_style, "serious")
+        style_menu.append(item_serious)
+
+        item_funny = Gtk.RadioMenuItem(label=t("menu.funny"), group=item_serious)
+        item_funny.set_active(current_style == "funny")
+        item_funny.connect("activate", self._on_change_style, "funny")
+        style_menu.append(item_funny)
+
+        menu.append(item_style)
+
         # ── Design submenu ────────────────────────────────────
         design_menu = Gtk.Menu()
         item_design = Gtk.MenuItem(label=t("menu.design"))
@@ -146,6 +165,30 @@ class ClaudeWatcher(Gtk.Application):
             self.popup_window.window.hide()
             # La recrearemos en el próximo click izquierdo
 
+    def _on_change_style(self, widget, style):
+        if not widget.get_active():
+            return
+        if get_style() == style:
+            return
+
+        _log.info(f"Changing style to {style}")
+        update_setting("style", style)
+
+        # Rebuild menu (also refreshes self._item_refresh reference)
+        self._menu.destroy()
+        self._menu = self._build_menu()
+
+        # Destroy popup so construction-time strings are recreated in new style
+        if self.popup_window:
+            self.popup_window.window.destroy()
+            self.popup_window = None
+
+        # Update tooltip in new style
+        if self.usage_data:
+            self._apply_usage_data(self.usage_data)
+        else:
+            self.status_icon.set_tooltip_text(t("tooltip.loading"))
+
     def _on_change_language(self, widget, lang):
         if not widget.get_active():
             return
@@ -167,12 +210,7 @@ class ClaudeWatcher(Gtk.Application):
 
         # Update tooltip in new language
         if self.usage_data:
-            five_h = self.usage_data.get("five_hour", {}).get("utilization", 0)
-            seven_d = self.usage_data.get("seven_day", {}).get("utilization", 0)
-            if self._stale:
-                self.status_icon.set_tooltip_text(t("tooltip.stale", five_h=five_h, seven_d=seven_d))
-            else:
-                self.status_icon.set_tooltip_text(t("tooltip.usage", five_h=five_h, seven_d=seven_d))
+            self._apply_usage_data(self.usage_data)
         else:
             self.status_icon.set_tooltip_text(t("tooltip.loading"))
 
@@ -220,7 +258,6 @@ class ClaudeWatcher(Gtk.Application):
         
         five_h = data.get("five_hour", {}).get("utilization", 0)
         seven_d = data.get("seven_day", {}).get("utilization", 0)
-        max_util = max(five_h, seven_d)
         
         # Actualización de icono desde memoria (Pixbuf)
         self.status_icon.set_from_pixbuf(render_pixbuf(five_h, seven_d))
