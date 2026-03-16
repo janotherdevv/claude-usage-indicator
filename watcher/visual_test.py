@@ -670,7 +670,8 @@ class VisualTestApp(Gtk.Application):
 
     def toggle_design(self):
         current = get_theme()
-        new_theme = "classic" if current == "obsidian" else "obsidian"
+        _cycle = {"obsidian": "classic", "classic": "desktop", "desktop": "obsidian"}
+        new_theme = _cycle.get(current, "obsidian")
         update_setting("theme", new_theme)
         
         # Re-crear popup

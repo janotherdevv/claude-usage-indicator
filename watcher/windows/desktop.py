@@ -2,6 +2,7 @@ import math
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
+from datetime import datetime
 
 import cairo
 
@@ -148,7 +149,6 @@ class DesktopWindow(BaseWindow):
             )
 
         if updated_at:
-            from datetime import datetime
             delta = (datetime.now() - updated_at).total_seconds()
             ts = t("classic.updated_now") if delta < 10 else t("classic.updated_at", time=updated_at.strftime('%H:%M'))
             if stale:

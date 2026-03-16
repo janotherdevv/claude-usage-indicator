@@ -175,6 +175,11 @@ class ClaudeWatcher(Gtk.Application):
         else:
             self.status_icon.set_from_pixbuf(render_pixbuf(0.0, 0.0))
 
+        # Rebuild menu so the CSS guard re-evaluates for the new theme
+        # (e.g. switching from Desktop back to Obsidian/Classic restores dark menu styling)
+        self._menu.destroy()
+        self._menu = self._build_menu()
+
         # Si la ventana está abierta, la cerramos para que se recree con el nuevo diseño
         if self.popup_window:
             self.popup_window.window.hide()
