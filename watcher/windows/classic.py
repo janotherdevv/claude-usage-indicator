@@ -166,7 +166,7 @@ class ClassicWindow(BaseWindow):
         self._pulsing = False
 
         if error:
-            self._status_label.set_markup(f'<span foreground="#E5A50A">{t("classic.conn_error")}</span>')
+            self._status_label.set_markup(f'<span foreground="#E5A50A">{t("shared.conn_error")}</span>')
             return
 
         if usage_data:
@@ -187,9 +187,9 @@ class ClassicWindow(BaseWindow):
 
         if updated_at:
             delta = (datetime.now() - updated_at).total_seconds()
-            ts = t("classic.updated_now") if delta < 10 else t("classic.updated_at", time=updated_at.strftime('%H:%M'))
+            ts = t("shared.updated_now") if delta < 10 else t("shared.updated_at", time=updated_at.strftime('%H:%M'))
             if stale:
-                ts += f" {t('classic.stale_suffix')}"
+                ts += f" {t('shared.stale_suffix')}"
             self._ts_label.set_text(ts)
 
     def _fill_section(self, section, data):

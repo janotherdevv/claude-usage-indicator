@@ -53,7 +53,7 @@ def _status_markup(utilization, text_color="#F4F4F5"):
 
 class BaseWindow:
     """Shared boilerplate for all popup window designs."""
-    def __init__(self, auto_hide=True):
+    def __init__(self, auto_hide=True, border_width=20):
         self.window = Gtk.Window()
         screen = self.window.get_screen()
         visual = screen.get_rgba_visual()
@@ -63,7 +63,7 @@ class BaseWindow:
         self.window.set_skip_taskbar_hint(True)
         self.window.set_skip_pager_hint(True)
         self.window.set_decorated(False)
-        self.window.set_border_width(20)
+        self.window.set_border_width(border_width)
         self.window.set_resizable(False)
         if auto_hide:
             self.window.connect("focus-out-event", lambda w, e: w.hide() or True)

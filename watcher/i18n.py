@@ -32,20 +32,21 @@ _STRINGS_EN = {
     "status.extreme_desc":  "Limit almost exhausted",
     "status.limit_label":   "LIMIT REACHED",
     "status.limit_desc":    "Tokens fully exhausted",
-    # Obsidian popup labels
+    # Popup labels (Obsidian + Desktop)
     "label.daily":          "DAILY",
     "label.weekly":         "WEEKLY",
     "label.resets":         "RESETS {time}",
     "label.gauge_loading":  "Usage gauge: loading\u2026",
     "label.gauge_tooltip":  "Daily (5h): {five_h:.0f}%  \u00b7  Weekly (7d): {seven_d:.0f}%",
     "label.stale":          "(stale data)",
-    # Classic popup labels
+    # Classic-specific labels
     "classic.fetching":     "Fetching...",
-    "classic.conn_error":   "Connection error",
-    "classic.updated_now":  "Updated just now",
-    "classic.updated_at":   "Updated {time}",
-    "classic.stale_suffix": "(stale)",
     "classic.resets":       "resets {time}",
+    # Shared status strings (Classic + Desktop + any future theme)
+    "shared.conn_error":    "Connection error",
+    "shared.updated_now":   "Updated just now",
+    "shared.updated_at":    "Updated {time}",
+    "shared.stale_suffix":  "(stale)",
     # Notifications
     "notif.normal":   "Back to normal \u2014 {pct}%",
     "notif.warning":  "High usage \u2014 {pct}%  \u00b7  resets {reset}",
@@ -113,20 +114,21 @@ _STRINGS_ES = {
     "status.extreme_desc":  "L\u00edmite casi agotado",
     "status.limit_label":   "L\u00CDMITE ALCANZADO",
     "status.limit_desc":    "Tokens completamente agotados",
-    # Obsidian popup labels
+    # Popup labels (Obsidian + Desktop)
     "label.daily":          "DIARIO",
     "label.weekly":         "SEMANAL",
     "label.resets":         "REINICIA {time}",
     "label.gauge_loading":  "Medidor de uso: cargando\u2026",
     "label.gauge_tooltip":  "Diario (5h): {five_h:.0f}%  \u00b7  Semanal (7d): {seven_d:.0f}%",
     "label.stale":          "(datos desactualizados)",
-    # Classic popup labels
+    # Classic-specific labels
     "classic.fetching":     "Cargando...",
-    "classic.conn_error":   "Error de conexi\u00f3n",
-    "classic.updated_now":  "Actualizado ahora mismo",
-    "classic.updated_at":   "Actualizado {time}",
-    "classic.stale_suffix": "(desact.)",
     "classic.resets":       "reinicia {time}",
+    # Shared status strings (Classic + Desktop + any future theme)
+    "shared.conn_error":    "Error de conexi\u00f3n",
+    "shared.updated_now":   "Actualizado ahora mismo",
+    "shared.updated_at":    "Actualizado {time}",
+    "shared.stale_suffix":  "(desact.)",
     # Notifications
     "notif.normal":   "Volvi\u00f3 a la normalidad \u2014 {pct}%",
     "notif.warning":  "Uso alto \u2014 {pct}%  \u00b7  reinicia {reset}",
