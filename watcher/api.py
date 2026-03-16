@@ -6,6 +6,7 @@ import urllib.error
 from datetime import datetime
 
 from .config import CREDENTIALS_PATH, API_URL
+from .history import update_daily_usage
 
 _log = logging.getLogger("claude_usage")
 
@@ -39,8 +40,12 @@ def fetch_usage(token):
             five_h = data.get("five_hour", {}).get("utilization", 0)
             seven_d = data.get("seven_day", {}).get("utilization", 0)
             five_h_reset = format_reset_time(data.get("five_hour", {}).get("resets_at", ""))
-            seven_d_reset = format_reset_time(data.get("seven_day", {}).get("resets_at", ""))
+            seven_d_raw_reset = data.get("seven_day", {}).get("resets_at", "")
+            seven_d_reset = format_reset_time(seven_d_raw_reset)
             
+            # Registrar uso diario para los indicadores del arco, sincronizando con el ciclo oficial
+            update_daily_usage(seven_d, resets_at=seven_d_raw_reset)
+
             _log.info(
                 "Usage fetched | 5h window: %.1f%% (resets: %s) | 7d window: %.1f%% (resets: %s)",
                 five_h, five_h_reset, seven_d, seven_d_reset

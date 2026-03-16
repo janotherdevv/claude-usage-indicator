@@ -47,6 +47,14 @@ _STRINGS_EN = {
     "notif.warning":  "High usage \u2014 {pct}%  \u00b7  resets {reset}",
     "notif.critical": "Critical usage \u2014 {pct}%!  \u00b7  resets {reset}",
     "notif.extreme":  "EXTREME usage \u2014 {pct}%!!  \u00b7  resets {reset}",
+    # Day names
+    "day.0": "M",
+    "day.1": "T",
+    "day.2": "W",
+    "day.3": "T",
+    "day.4": "F",
+    "day.5": "S",
+    "day.6": "S",
 }
 
 _STRINGS_ES = {
@@ -96,6 +104,14 @@ _STRINGS_ES = {
     "notif.warning":  "Uso alto \u2014 {pct}%  \u00b7  reinicia {reset}",
     "notif.critical": "Uso cr\u00edtico \u2014 {pct}%!  \u00b7  reinicia {reset}",
     "notif.extreme":  "Uso EXTREMO \u2014 {pct}%!!  \u00b7  reinicia {reset}",
+    # Day names
+    "day.0": "L",
+    "day.1": "M",
+    "day.2": "X",
+    "day.3": "J",
+    "day.4": "V",
+    "day.5": "S",
+    "day.6": "D",
 }
 
 _DICTS = {"en": _STRINGS_EN, "es": _STRINGS_ES}

@@ -9,6 +9,7 @@ from datetime import datetime
 from .theme import tier, get_classic_bar_css, utilization_color, get_palette
 from .api import format_reset_time
 from .icons import draw_obsidian_gauge
+from .history import get_weekly_history
 from .config import get_theme
 from .i18n import t
 
@@ -113,6 +114,7 @@ class ObsidianWindow(BaseWindow):
 
         self.five_h_util = 0.0
         self.seven_d_util = 0.0
+        self.history = []
         self.target_5h = 0.0
         self.target_7d = 0.0
         self.pulse_val = 0.0
@@ -185,10 +187,10 @@ class ObsidianWindow(BaseWindow):
         size = min(w, h)
 
         if self._pulsing:
-            draw_obsidian_gauge(ctx, cx, cy, size, self.pulse_val, self.pulse_val * 0.7)
+            draw_obsidian_gauge(ctx, cx, cy, size, self.pulse_val, self.pulse_val * 0.7, history=self.history)
             display_util = self.pulse_val
         else:
-            draw_obsidian_gauge(ctx, cx, cy, size, self.five_h_util, self.seven_d_util)
+            draw_obsidian_gauge(ctx, cx, cy, size, self.five_h_util, self.seven_d_util, history=self.history)
             display_util = max(self.five_h_util, self.seven_d_util)
 
         tr = tier(display_util)
@@ -282,6 +284,7 @@ class ObsidianWindow(BaseWindow):
             return
 
         if usage_data:
+            self.history = get_weekly_history()
             new_5h = usage_data.get("five_hour", {}).get("utilization", 0)
             new_7d = usage_data.get("seven_day", {}).get("utilization", 0)
 
