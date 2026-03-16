@@ -4,7 +4,7 @@ A lightweight system tray application for Linux (Ubuntu/GNOME) that displays rea
 
 | Classic | Obsidian |
 |---------|----------|
-| ![Classic design](readme/img/classic-design-ok.png) | ![Obsidian design](readme/img/obsidian-design-ok.png) |
+<!--| ![Classic design](readme/img/classic-design-ok.png) | ![Obsidian design](readme/img/obsidian-design-ok.png) |-->
 
 ## Features
 
