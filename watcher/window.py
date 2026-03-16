@@ -122,13 +122,24 @@ class ObsidianWindow(BaseWindow):
         self._pulsing = True
 
         main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        # Forzar ancho mínimo del contenido (200px coincide con el gauge)
+        main_box.set_size_request(200, -1)
         self.window.add(main_box)
 
         # Status Header
         self._status_label = Gtk.Label()
         self._status_label.set_markup(f'<span foreground="#71717A" weight="bold">{t("status.initializing")}</span>')
         self._status_label.set_halign(Gtk.Align.START)
+        self._status_label.set_valign(Gtk.Align.START)
+        self._status_label.set_xalign(0.0)
+        self._status_label.set_yalign(0.0) # Anclar al borde superior (Eje Y)
         self._status_label.set_line_wrap(True)
+        self._status_label.set_justify(Gtk.Justification.LEFT)
+        # Forzar una altura fija en píxeles
+        self._status_label.set_size_request(-1, 64)
+        # Forzar ancho fijo en caracteres
+        self._status_label.set_width_chars(28)
+        self._status_label.set_max_width_chars(28)
         main_box.pack_start(self._status_label, False, False, 0)
 
         # Gauge Container
@@ -383,11 +394,23 @@ class ClassicWindow(BaseWindow):
         self.history = []
 
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
+        # Forzar ancho mínimo del contenido (280px coincide con la barra)
+        box.set_size_request(280, -1)
         self.window.add(box)
 
         self._status_label = Gtk.Label()
         self._status_label.set_markup('<span>–</span>')
         self._status_label.set_halign(Gtk.Align.START)
+        self._status_label.set_valign(Gtk.Align.START)
+        self._status_label.set_xalign(0.0)
+        self._status_label.set_yalign(0.0) # Anclar al borde superior (Eje Y)
+        self._status_label.set_line_wrap(True)
+        self._status_label.set_justify(Gtk.Justification.LEFT)
+        # Forzar altura fija en píxeles
+        self._status_label.set_size_request(-1, 72)
+        # Forzar ancho fijo en caracteres
+        self._status_label.set_width_chars(38)
+        self._status_label.set_max_width_chars(38)
         box.pack_start(self._status_label, False, False, 0)
 
         self._five_h = self._make_section("5h")

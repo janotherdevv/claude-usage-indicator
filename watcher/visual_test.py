@@ -18,18 +18,24 @@ class SimulationState:
     sim_7d: float = 0.0        # 0.0 – 1.0
     daily_resets: int = 0
     day_history: list = field(default_factory=lambda: [0.0] * 7)
+    _base_7d: float = 0.0      # El valor al inicio del día actual
 
     def step(self, delta: float):
+        old_5h = self.sim_5h
         self.sim_5h += delta
+        
+        # El 7d crece proporcionalmente al avance del 5h durante el día.
+        # Asumimos que un ciclo completo de 5h (1.0) añade un 0.15 (15%) al 7d.
+        growth_factor = 0.15
+        self.sim_7d = min(1.0, self._base_7d + (self.sim_5h * growth_factor))
+
         if self.sim_5h >= 1.0:
             self.sim_5h = 0.0
-            self.sim_7d = min(1.0, self.sim_7d + 0.15)
+            self._base_7d = self.sim_7d
             self.daily_resets += 1
             if self.daily_resets % 2 == 0:
                 self.day_history = self.day_history[1:] + [self.sim_7d * 100]
-        if self.sim_7d >= 1.0:
-            self.sim_7d = 0.0
-
+        
     def to_usage_data(self) -> dict:
         return {
             "five_hour": {
@@ -45,16 +51,19 @@ class SimulationState:
     def do_wrap(self):
         """Aplica el ciclo de reset (separado de step para poder pausar en el pico)."""
         self.sim_5h = 0.0
-        self.sim_7d = min(1.0, self.sim_7d + 0.15)
+        # Al hacer wrap, el valor actual de 7d se convierte en la nueva base
+        self._base_7d = self.sim_7d
         self.daily_resets += 1
         if self.daily_resets % 2 == 0:
             self.day_history = self.day_history[1:] + [self.sim_7d * 100]
         if self.sim_7d >= 1.0:
             self.sim_7d = 0.0
+            self._base_7d = 0.0
 
     def reset(self):
         self.sim_5h = 0.0
         self.sim_7d = 0.0
+        self._base_7d = 0.0
         self.daily_resets = 0
         self.day_history = [0.0] * 7
 
