@@ -379,6 +379,7 @@ def _status_markup(utilization, text_color="#F4F4F5"):
 class ClassicWindow(BaseWindow):
     def __init__(self):
         super().__init__()
+        self.history = []
 
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
         self.window.add(box)
@@ -392,6 +393,7 @@ class ClassicWindow(BaseWindow):
         box.pack_start(self._five_h["vbox"], False, False, 0)
 
         self._seven_d = self._make_section("7d")
+        self._seven_d["history_area"].connect("draw", self._on_draw_7d_history)
         box.pack_start(self._seven_d["vbox"], False, False, 0)
 
         self._ts_label = Gtk.Label(label=t("classic.fetching"))
@@ -426,19 +428,83 @@ class ClassicWindow(BaseWindow):
 
         vbox.pack_start(row, False, False, 0)
 
+        overlay = Gtk.Overlay()
+        
         bar = Gtk.ProgressBar()
-        bar.set_size_request(280, -1)
+        bar.set_size_request(280, 12)
         provider = Gtk.CssProvider()
         provider.load_from_data(get_classic_bar_css(0))
         bar.get_style_context().add_provider(provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-        vbox.pack_start(bar, False, False, 0)
+        
+        # Add margin to top of bar to leave room for history labels
+        bar.set_margin_top(15)
+        overlay.add(bar)
+
+        history_area = Gtk.DrawingArea()
+        # We need the drawing area to be transparent and pass through clicks if any (though we don't have clicks here)
+        history_area.set_valign(Gtk.Align.FILL)
+        history_area.set_halign(Gtk.Align.FILL)
+        overlay.add_overlay(history_area)
+        
+        vbox.pack_start(overlay, False, False, 0)
 
         reset_lbl = Gtk.Label(label="")
         reset_lbl.set_halign(Gtk.Align.START)
         reset_lbl.get_style_context().add_class("dim-label")
         vbox.pack_start(reset_lbl, False, False, 0)
 
-        return {"vbox": vbox, "pct": pct, "bar": bar, "reset_lbl": reset_lbl, "provider": provider}
+        return {"vbox": vbox, "pct": pct, "bar": bar, "history_area": history_area, "reset_lbl": reset_lbl, "provider": provider}
+
+    def _on_draw_7d_history(self, widget, ctx):
+        if not self.history or self._pulsing:
+            return False
+
+        width = widget.get_allocated_width()
+        height = widget.get_allocated_height()
+        
+        import cairo
+        from .i18n import t
+
+        bar_y = 15 # Because we set margin_top on the bar
+        bar_height = height - bar_y
+
+        for weekday, value in self.history:
+            if value <= 0: continue
+            
+            x = width * min(value / 100.0, 1.0)
+            mr, mg, mb = utilization_color(value)
+            
+            # Subtle vertical line cutting the bar
+            ctx.set_source_rgb(0.102, 0.082, 0.149) # #1A1526 Classic bg
+            ctx.set_line_width(2.0)
+            ctx.move_to(x, bar_y)
+            ctx.line_to(x, height)
+            ctx.stroke()
+            
+            # Glowing node
+            ctx.new_path()
+            ctx.arc(x, bar_y + bar_height / 2, 4, 0, 2 * 3.14159)
+            ctx.set_source_rgba(mr, mg, mb, 1.0)
+            ctx.fill()
+            
+            ctx.new_path()
+            ctx.arc(x, bar_y + bar_height / 2, 4, 0, 2 * 3.14159)
+            ctx.set_source_rgba(0.102, 0.082, 0.149, 0.8) # Inner dark dot for bead effect matching bg
+            ctx.set_line_width(1.0)
+            ctx.stroke()
+            
+            # Draw letter floating above
+            day_letter = t(f"day.{weekday}")
+            ctx.select_font_face("Inter", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+            ctx.set_font_size(10)
+            
+            extents = ctx.text_extents(day_letter)
+            ctx.set_source_rgba(mr, mg, mb, 0.95)
+            # Center text over x, and place it above the bar
+            ctx.move_to(x - extents.width/2 - extents.x_bearing, bar_y - 4)
+            ctx.show_text(day_letter)
+
+        return False
 
     def _do_pulse(self):
         if self._pulsing:
@@ -456,6 +522,9 @@ class ClassicWindow(BaseWindow):
             return
 
         if usage_data:
+            from .history import get_weekly_history
+            self.history = get_weekly_history()
+            
             five_h_util = usage_data.get("five_hour", {}).get("utilization", 0)
             seven_d_util = usage_data.get("seven_day", {}).get("utilization", 0)
 
