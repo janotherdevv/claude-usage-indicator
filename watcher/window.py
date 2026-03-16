@@ -478,6 +478,8 @@ class ClassicWindow(BaseWindow):
         resets_at = data.get("resets_at", "")
         if resets_at:
             section["reset_lbl"].set_text(t("classic.resets", time=format_reset_time(resets_at)))
+        else:
+            section["reset_lbl"].set_text("")
 
 # --- Factory ---
 
