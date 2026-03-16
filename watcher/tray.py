@@ -22,7 +22,7 @@ from .window import UsageWindow
 
 
 class ClaudeWatcher(Gtk.Application):
-    def __init__(self):
+    def __init__(self, autostart=False):
         super().__init__(application_id="com.claudeusage.watcher")
         self.usage_data = None
         self.last_error = None
@@ -33,6 +33,7 @@ class ClaudeWatcher(Gtk.Application):
         self._last_notified_tier = None
         self._current_interval = POLL_INTERVAL
         self._poll_timer_id = None
+        self._autostart = autostart
         
         # Inicializar Notify para notificaciones robustas en Ubuntu/Linux
         Notify.init("Claude Usage Watcher")
@@ -53,8 +54,15 @@ class ClaudeWatcher(Gtk.Application):
 
         self._menu = self._build_menu()
 
-        # Iniciar polling interno
-        self._poll_timer_id = GLib.timeout_add_seconds(self._current_interval, self._poll_and_reschedule)
+        # Autostart (lanzado por el sistema al inicio de sesión): primer poll a los 10s
+        # para dejar que la sesión se estabilice antes de llamar a la API.
+        # Lanzamiento manual: usar el intervalo normal (15min) para no hacer pulls
+        # innecesarios cuando el usuario solo quiere ver la app en la bandeja.
+        if self._autostart:
+            initial_delay = 10
+            self._poll_timer_id = GLib.timeout_add_seconds(initial_delay, self._poll_and_reschedule)
+        else:
+            self._poll_timer_id = GLib.timeout_add_seconds(self._current_interval, self._poll_and_reschedule)
 
     def _build_menu(self):
         import os as _os
@@ -227,12 +235,18 @@ class ClaudeWatcher(Gtk.Application):
         self.last_updated = None  # bypass 60s cooldown
         self._start_fetch()
 
-    def _start_fetch(self):
-        """Lanza un fetch en background."""
+    def _start_fetch(self, scheduled=False):
+        """Lanza un fetch en background.
+
+        scheduled=True: llamado desde el timer → bypasea el cooldown de 60s
+        (el propio timer ya controla la frecuencia mínima).
+        scheduled=False: llamado desde acción del usuario → respeta cooldown.
+        """
         if self._fetching:
             return
-        # Evitar fetches muy seguidos (excepto si forzamos con refresh now)
-        if self.last_updated and (datetime.now() - self.last_updated).total_seconds() < 60:
+        # Cooldown de 60s solo para acciones manuales (clic, refresh now).
+        # El scheduler ya garantiza el intervalo mínimo por sí mismo.
+        if not scheduled and self.last_updated and (datetime.now() - self.last_updated).total_seconds() < 60:
             return
         
         self._fetching = True
@@ -251,7 +265,7 @@ class ClaudeWatcher(Gtk.Application):
 
     def _poll_and_reschedule(self):
         self._poll_timer_id = None
-        self._start_fetch()
+        self._start_fetch(scheduled=True)
         return False
 
     def _apply_usage_data(self, data):
@@ -331,7 +345,7 @@ class ClaudeWatcher(Gtk.Application):
         elif max_usage > 70:
             return 450 # 7.5m - Alto riesgo
         elif max_usage < 20:
-            return 1800 # 30m - Muy bajo uso, ahorrar tokens
+            return MAX_POLL_INTERVAL # 2h - Muy bajo uso, ahorrar tokens
         else:
             return DEFAULT_POLL_INTERVAL # 15m - Normal
 
@@ -479,7 +493,8 @@ class ClaudeWatcher(Gtk.Application):
 
 
 def main():
-    app = ClaudeWatcher()
+    autostart = "--autostart" in sys.argv
+    app = ClaudeWatcher(autostart=autostart)
     app.run()
 
 

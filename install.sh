@@ -28,7 +28,7 @@ cat > "$DESKTOP_FILE" <<EOF
 [Desktop Entry]
 Type=Application
 Name=Claude Usage Watcher
-Exec=claude-usage-watcher
+Exec=claude-usage-watcher --autostart
 Icon=$HOME/.cache/claude-usage-watcher/assets/icon_current.png
 Comment=Shows Claude API usage in the system tray
 Categories=Utility;
