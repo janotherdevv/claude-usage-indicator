@@ -1,0 +1,34 @@
+window {
+    background-color: #1A1526;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+}
+label {
+    color: #E8E2F4;
+}
+.dim-label {
+    color: rgba(232, 226, 244, 0.45);
+}
+.section-header {
+    color: rgba(232, 226, 244, 0.55);
+}
+progressbar trough {
+    background-color: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    min-height: 8px;
+    border: none;
+}
+progressbar trough progress {
+    border-radius: 4px;
+    min-height: 8px;
+}
+menu {
+    background-color: #09090B;
+    color: #D4D4D8;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+menuitem label {
+    color: #D4D4D8;
+}
+menuitem:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}

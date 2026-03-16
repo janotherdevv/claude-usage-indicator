@@ -1,0 +1,44 @@
+window {
+    background-color: #09090B; /* Zinc 950 */
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+}
+label {
+    color: #F4F4F5; /* Zinc 100 */
+    font-family: "Inter", "Cantarell", "Sans";
+}
+.whisper-label {
+    color: #71717A; /* Zinc 500 */
+    font-size: 0.75em;
+    font-weight: 500;
+}
+.metric-box {
+    padding: 8px 12px;
+    border-radius: 10px;
+    background-color: rgba(255, 255, 255, 0.03);
+    transition: background-color 0.2s ease;
+}
+.metric-box:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+.metric-label {
+    font-size: 0.72em;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+.metric-value {
+    font-size: 1.2em;
+    font-weight: 600;
+    color: #FAFAFA;
+}
+menu {
+    background-color: #09090B;
+    color: #D4D4D8;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+menuitem label {
+    color: #D4D4D8;
+}
+menuitem:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
