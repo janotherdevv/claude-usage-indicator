@@ -10,6 +10,7 @@ from .theme import utilization_color
 from .window import UsageWindow
 from .icons import render_pixbuf
 from .i18n import t
+from .config import get_theme, update_setting
 
 
 # ── Simulation State ──────────────────────────────────────────────────────────
@@ -471,8 +472,13 @@ class ControlWindow:
         self._btn_manual.get_style_context().add_class("ctrl-btn")
         self._btn_manual.connect("clicked", self._on_manual)
 
+        self._btn_design = Gtk.Button(label="◈  Design")
+        self._btn_design.get_style_context().add_class("ctrl-btn")
+        self._btn_design.connect("clicked", lambda _: self._app.toggle_design())
+
         transport.pack_start(self._btn_play, False, False, 0)
         transport.pack_start(self._btn_manual, False, False, 0)
+        transport.pack_start(self._btn_design, False, False, 0)
         outer.pack_start(transport, False, False, 0)
 
         # ── Speed slider ──
@@ -658,6 +664,21 @@ class VisualTestApp(Gtk.Application):
             usage_data=data,
             history=self._state.get_simulated_history()
         )
+
+    def toggle_design(self):
+        current = get_theme()
+        new_theme = "classic" if current == "obsidian" else "obsidian"
+        update_setting("theme", new_theme)
+        
+        # Re-crear popup
+        self._popup.window.destroy()
+        self._popup = UsageWindow(auto_hide=False)
+        self._popup.window.connect("delete-event", lambda w, e: self.quit())
+        _make_draggable(self._popup.window)
+        
+        self.refresh_popup()
+        self._popup.show()
+        self._position_popup()
 
     def start_auto(self):
         if self._auto_timer_id is None:
