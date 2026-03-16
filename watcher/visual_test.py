@@ -620,9 +620,22 @@ class VisualTestApp(Gtk.Application):
         GLib.idle_add(self._position_popup)
 
     def _position_popup(self):
-        cx, cy = self._control_win.window.get_position()
-        cw, _ch = self._control_win.window.get_size()
-        self._popup.window.move(cx + cw + 20, cy)
+        screen = Gdk.Screen.get_default()
+        sw = screen.get_width()
+        
+        pw, ph = self._popup.window.get_size()
+        cw, ch = self._control_win.window.get_size()
+        
+        margin = 20
+        # Posicionar el Popup a la derecha
+        px = sw - pw - margin
+        py = margin
+        self._popup.window.move(px, py)
+        
+        # Posicionar el Control a la izquierda del Popup
+        cx = px - cw - margin
+        cy = margin
+        self._control_win.window.move(cx, cy)
         return False
 
     def refresh_popup(self):
