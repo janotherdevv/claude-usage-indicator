@@ -25,8 +25,9 @@ class SimulationState:
         self.sim_5h += delta
         
         # El 7d crece proporcionalmente al avance del 5h durante el día.
-        # Asumimos que un ciclo completo de 5h (1.0) añade un 0.15 (15%) al 7d.
-        growth_factor = 0.15
+        # Ahora un ciclo completo de 5h (1.0) añade un 0.07 (7%) al 7d.
+        # De esta forma se requieren 2 ciclos diarios para completar un día de historial (14%).
+        growth_factor = 0.07
         self.sim_7d = min(1.0, self._base_7d + (self.sim_5h * growth_factor))
 
         if self.sim_5h >= 1.0:
@@ -47,6 +48,22 @@ class SimulationState:
                 "resets_at": (datetime.now() + timedelta(days=7)).isoformat(),
             },
         }
+
+    def get_simulated_history(self) -> list:
+        """
+        Genera el historial basado en el uso semanal actual.
+        Un nuevo dia de historial aparece cada 14% de uso semanal.
+        """
+        # La secuencia de dias pedida: Domingo(6), Lunes(0), Martes(1)...
+        day_sequence = [6, 0, 1, 2, 3, 4, 5]
+        usage_pct = self.sim_7d * 100
+        days_completed = int(usage_pct // 14)
+        
+        history = []
+        for i in range(min(days_completed, len(day_sequence))):
+            # Simulamos que cada dia anterior se pico en un valor fijo progresivo
+            history.append((day_sequence[i], (i + 1) * 14))
+        return history
 
     def do_wrap(self):
         """Aplica el ciclo de reset (separado de step para poder pausar en el pico)."""
@@ -609,7 +626,10 @@ class VisualTestApp(Gtk.Application):
         return False
 
     def refresh_popup(self):
-        self._popup.update(usage_data=self._state.to_usage_data())
+        self._popup.update(
+            usage_data=self._state.to_usage_data(),
+            history=self._state.get_simulated_history()
+        )
 
     def start_auto(self):
         if self._auto_timer_id is None:

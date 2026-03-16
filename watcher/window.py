@@ -288,7 +288,7 @@ class ObsidianWindow(BaseWindow):
         self._tick_id = None
         return False
 
-    def update(self, usage_data=None, error=None, updated_at=None, stale=False):
+    def update(self, usage_data=None, error=None, updated_at=None, stale=False, history=None):
         self._pulsing = False
 
         if error:
@@ -296,7 +296,10 @@ class ObsidianWindow(BaseWindow):
             return
 
         if usage_data:
-            self.history = get_weekly_history()
+            if history is not None:
+                self.history = history
+            else:
+                self.history = get_weekly_history()
             new_5h = usage_data.get("five_hour", {}).get("utilization", 0)
             new_7d = usage_data.get("seven_day", {}).get("utilization", 0)
 
@@ -537,17 +540,19 @@ class ClassicWindow(BaseWindow):
             return True
         return False
 
-    def update(self, usage_data=None, error=None, updated_at=None, stale=False):
+    def update(self, usage_data=None, error=None, updated_at=None, stale=False, history=None):
         self._pulsing = False
 
         if error:
             self._status_label.set_markup(f'<span foreground="#E5A50A">{t("classic.conn_error")}</span>')
-            self._ts_label.set_text(error)
             return
 
         if usage_data:
-            from .history import get_weekly_history
-            self.history = get_weekly_history()
+            if history is not None:
+                self.history = history
+            else:
+                from .history import get_weekly_history
+                self.history = get_weekly_history()
             
             five_h_util = usage_data.get("five_hour", {}).get("utilization", 0)
             seven_d_util = usage_data.get("seven_day", {}).get("utilization", 0)
