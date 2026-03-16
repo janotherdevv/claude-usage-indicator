@@ -9,7 +9,6 @@ from .base import BaseWindow, _set_screen_provider, _status_markup, _hex
 from ..theme import utilization_color, get_classic_bar_css
 from ..api import format_reset_time
 from ..history import get_weekly_history
-from ..config import get_theme
 from ..i18n import t
 
 _classic_css_provider = None
@@ -114,9 +113,6 @@ class ClassicWindow(BaseWindow):
 
         width = widget.get_allocated_width()
         height = widget.get_allocated_height()
-
-        import cairo
-        from ..i18n import t
 
         bar_y = 15 # Because we set margin_top on the bar
         bar_height = height - bar_y

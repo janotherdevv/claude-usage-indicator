@@ -2,10 +2,7 @@ import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, GLib
 
-from .base import BaseWindow, _status_markup, _hex
-from ..theme import utilization_color
-from ..api import format_reset_time
-from ..i18n import t
+from .base import BaseWindow
 
 
 class DesktopWindow(BaseWindow):

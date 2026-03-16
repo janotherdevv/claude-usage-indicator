@@ -1,6 +1,6 @@
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GLib, Gdk
+from gi.repository import Gtk, GLib
 import cairo
 import math
 from datetime import datetime
@@ -11,7 +11,6 @@ from ..theme import tier, utilization_color, get_palette
 from ..api import format_reset_time
 from ..icons import draw_obsidian_gauge
 from ..history import get_weekly_history
-from ..config import get_theme
 from ..i18n import t
 
 _obsidian_css_provider = None
