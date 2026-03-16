@@ -21,6 +21,9 @@ POLL_INTERVAL = DEFAULT_POLL_INTERVAL
 ASSETS_DIR = USER_CACHE_DIR / "assets"
 ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
+# Icono estático de Claude para notificaciones
+CLAUDE_ICON_PATH = PROJECT_ROOT / "img" / "claude-color.svg"
+
 # Configuración de Usuario
 CONFIG_PATH = USER_DATA_DIR / "settings.json"
 

@@ -84,7 +84,7 @@ def _set_screen_provider(provider):
 
 class BaseWindow:
     """Configuración base común a todos los diseños de ventana popup."""
-    def __init__(self):
+    def __init__(self, auto_hide=True):
         self.window = Gtk.Window()
         # RGBA visual necesario para compositing (transparencia / border-radius)
         screen = self.window.get_screen()
@@ -97,7 +97,8 @@ class BaseWindow:
         self.window.set_decorated(False)
         self.window.set_border_width(20)
         self.window.set_resizable(False)
-        self.window.connect("focus-out-event", lambda w, e: w.hide() or True)
+        if auto_hide:
+            self.window.connect("focus-out-event", lambda w, e: w.hide() or True)
         self.window.connect("delete-event", lambda w, e: w.hide() or True)
 
     def _apply_theme(self, window):
@@ -109,8 +110,8 @@ class BaseWindow:
 
 
 class ObsidianWindow(BaseWindow):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, auto_hide=True):
+        super().__init__(auto_hide=auto_hide)
 
         self.five_h_util = 0.0
         self.seven_d_util = 0.0
@@ -377,8 +378,8 @@ def _status_markup(utilization, text_color="#F4F4F5"):
     )
 
 class ClassicWindow(BaseWindow):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, auto_hide=True):
+        super().__init__(auto_hide=auto_hide)
         self.history = []
 
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
@@ -555,8 +556,8 @@ class ClassicWindow(BaseWindow):
 
 # --- Factory ---
 
-def UsageWindow():
+def UsageWindow(auto_hide=True):
     theme = get_theme()
     if theme == "classic":
-        return ClassicWindow()
-    return ObsidianWindow()
+        return ClassicWindow(auto_hide=auto_hide)
+    return ObsidianWindow(auto_hide=auto_hide)

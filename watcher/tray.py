@@ -13,7 +13,7 @@ from gi.repository import Gtk, GLib, Gdk, Gio, Notify
 # pero sigue siendo la forma estándar en muchos escritorios Linux.
 warnings.filterwarnings("ignore", ".*StatusIcon.*", DeprecationWarning)
 
-from .config import POLL_INTERVAL, _log, get_theme, get_language, get_style, update_setting
+from .config import POLL_INTERVAL, _log, get_theme, get_language, get_style, update_setting, CLAUDE_ICON_PATH
 from .i18n import t
 from .theme import tier, get_menu_css
 from .icons import render_pixbuf
@@ -332,8 +332,23 @@ class ClaudeWatcher(Gtk.Application):
         # Caso 3: Éxito -> Adaptar según uso
         if not data:
             return DEFAULT_POLL_INTERVAL
-            
+
         five_h = data.get("five_hour", {}).get("utilization", 0)
+
+        # Límite diario alcanzado: esperar hasta el reinicio en lugar de seguir preguntando
+        if five_h >= 100:
+            resets_at = data.get("five_hour", {}).get("resets_at", "")
+            if resets_at:
+                try:
+                    reset_dt = datetime.fromisoformat(resets_at)
+                    secs = (reset_dt - datetime.now(reset_dt.tzinfo)).total_seconds()
+                    if secs > 0:
+                        wait = int(secs) + 60  # 60 s de margen tras el reinicio
+                        _log.info(f"Límite diario alcanzado. Próximo fetch en {wait}s (reset: {resets_at})")
+                        return wait
+                except Exception:
+                    pass
+            return MAX_POLL_INTERVAL  # fallback si resets_at no es parseable
 
         if five_h > 90:
             return MIN_POLL_INTERVAL # 2.5m - Muy crítico, queremos verlo bajar pronto
@@ -390,10 +405,9 @@ class ClaudeWatcher(Gtk.Application):
             # Ensure body is a valid string
             body = str(body)
 
-            # Icono para la notificación
-            import os
-            icon_path = os.path.expanduser("~/.cache/claude-usage-watcher/assets/icon_current.png")
-            if not os.path.exists(icon_path):
+            # Icono para la notificación (Claude Logo)
+            icon_path = str(CLAUDE_ICON_PATH)
+            if not CLAUDE_ICON_PATH.exists():
                 # Fallback to a standard system icon name if our custom one isn't ready
                 icon_path = "dialog-information"
 
@@ -486,6 +500,11 @@ class ClaudeWatcher(Gtk.Application):
 
 
 def main():
+    if "--visual-test" in sys.argv:
+        from watcher.visual_test import VisualTestApp
+        app = VisualTestApp()
+        app.run()
+        return
     autostart = "--autostart" in sys.argv
     app = ClaudeWatcher(autostart=autostart)
     app.run()
