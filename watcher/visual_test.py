@@ -650,7 +650,7 @@ class VisualTestApp(Gtk.Application):
             self._control_win.dial.queue_draw()
             self.refresh_popup()
             self._auto_timer_id = None
-            GLib.timeout_add(1500, self._wrap_and_resume)
+            GLib.timeout_add(900, self._wrap_and_resume)
             return False
 
         self._state.step(delta)
