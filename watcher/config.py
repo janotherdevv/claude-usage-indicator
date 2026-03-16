@@ -39,7 +39,7 @@ def get_settings():
         return defaults
 
 def get_theme():
-    """Devuelve el nombre del tema activo ('obsidian' | 'classic')."""
+    """Devuelve el nombre del tema activo ('obsidian' | 'classic' | 'desktop')."""
     return get_settings().get("theme", "obsidian")
 
 def get_language():
