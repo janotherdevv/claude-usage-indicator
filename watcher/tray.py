@@ -54,15 +54,12 @@ class ClaudeWatcher(Gtk.Application):
 
         self._menu = self._build_menu()
 
-        # Autostart (lanzado por el sistema al inicio de sesión): primer poll a los 10s
-        # para dejar que la sesión se estabilice antes de llamar a la API.
-        # Lanzamiento manual: usar el intervalo normal (15min) para no hacer pulls
-        # innecesarios cuando el usuario solo quiere ver la app en la bandeja.
-        if self._autostart:
-            initial_delay = 10
-            self._poll_timer_id = GLib.timeout_add_seconds(initial_delay, self._poll_and_reschedule)
-        else:
-            self._poll_timer_id = GLib.timeout_add_seconds(self._current_interval, self._poll_and_reschedule)
+        # Siempre hacer un fetch inicial al arrancar.
+        # Con --autostart esperamos 10s para que la sesión se estabilice.
+        # En lanzamiento manual arrancamos a los 2s (tiempo para que el StatusIcon
+        # quede registrado en el panel antes de la primera actualización).
+        initial_delay = 10 if self._autostart else 2
+        self._poll_timer_id = GLib.timeout_add_seconds(initial_delay, self._poll_and_reschedule)
 
     def _build_menu(self):
         import os as _os
@@ -337,14 +334,12 @@ class ClaudeWatcher(Gtk.Application):
             return DEFAULT_POLL_INTERVAL
             
         five_h = data.get("five_hour", {}).get("utilization", 0)
-        seven_d = data.get("seven_day", {}).get("utilization", 0)
-        max_usage = max(five_h, seven_d)
-        
-        if max_usage > 90:
+
+        if five_h > 90:
             return MIN_POLL_INTERVAL # 2.5m - Muy crítico, queremos verlo bajar pronto
-        elif max_usage > 70:
+        elif five_h > 70:
             return 450 # 7.5m - Alto riesgo
-        elif max_usage < 20:
+        elif five_h < 20:
             return MAX_POLL_INTERVAL # 2h - Muy bajo uso, ahorrar tokens
         else:
             return DEFAULT_POLL_INTERVAL # 15m - Normal
@@ -437,16 +432,14 @@ class ClaudeWatcher(Gtk.Application):
         self.popup_window = UsageWindow()
         GLib.idle_add(self._position_popup)
 
-        # Si los datos están frescos, los mostramos ya
-        if self.last_updated and (datetime.now() - self.last_updated).total_seconds() < 60:
-            self.popup_window.update(
-                usage_data=self.usage_data,
-                error=self.last_error,
-                updated_at=self.last_updated,
-                stale=self._stale,
-            )
-        else:
-            self._start_fetch()
+        # Solo mostramos los datos disponibles; los fetches son exclusivamente
+        # responsabilidad del timer en background y del botón "Actualizar".
+        self.popup_window.update(
+            usage_data=self.usage_data,
+            error=self.last_error,
+            updated_at=self.last_updated,
+            stale=self._stale,
+        )
 
     def _position_popup(self):
         if not self.popup_window:
