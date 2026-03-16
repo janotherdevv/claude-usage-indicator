@@ -46,6 +46,24 @@ class TestI18n(unittest.TestCase):
             self.assertIn('23%', result)
             self.assertIn('8%', result)
 
+    def test_get_language_default(self):
+        from watcher.config import get_language
+        from unittest.mock import patch
+        with patch('watcher.config.CONFIG_PATH') as mock_path:
+            mock_path.exists.return_value = False
+            self.assertEqual(get_language(), 'en')
+
+    def test_get_language_from_settings(self):
+        import json, tempfile, pathlib
+        from watcher.config import get_language
+        from unittest.mock import patch
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            json.dump({'language': 'es', 'theme': 'obsidian'}, f)
+            tmp = pathlib.Path(f.name)
+        with patch('watcher.config.CONFIG_PATH', tmp):
+            self.assertEqual(get_language(), 'es')
+        tmp.unlink()
+
 
 if __name__ == '__main__':
     unittest.main()
