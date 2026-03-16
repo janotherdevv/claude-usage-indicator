@@ -75,7 +75,31 @@ def draw_obsidian_gauge(ctx, x, y, size, five_h_util, seven_d_util, is_tray=Fals
     fraction_5h = min(five_h_util / 100.0, 1.0)
     if fraction_5h > 0:
         r, g, b = utilization_color(five_h_util)
-        ctx.set_source_rgb(r, g, b)
+        
+        # Propuesta: Estado Sólido Progresivo (90% -> 100%)
+        # Esto elimina la transición "tosca" al interpolar la opacidad del relleno
+        fill_opacity = 0.0
+        if five_h_util > 90:
+            fill_opacity = min(1.0, (five_h_util - 90) / 10.0)
+
+        if fill_opacity > 0:
+            # Gradiente Radial Progresivo
+            pat = cairo.RadialGradient(x, y - inner_radius*0.2, inner_radius*0.1, 
+                                       x, y, inner_radius + inner_stroke/2)
+            
+            # Centro luminoso con opacidad variable
+            pat.add_color_stop_rgba(0, min(1.0, r*1.2), min(1.0, g*1.2), min(1.0, b*1.2), 0.95 * fill_opacity)
+            pat.add_color_stop_rgba(1, r, g, b, 0.85 * fill_opacity)
+            
+            ctx.set_source(pat)
+            ctx.arc(x, y, inner_radius + inner_stroke/2, 0, full_sweep)
+            ctx.fill()
+            
+            # Si el relleno es muy denso, atenuamos el trazo del arco para que parezca una sola pieza
+            ctx.set_source_rgba(r, g, b, 1.0 - (fill_opacity * 0.5))
+        else:
+            ctx.set_source_rgb(r, g, b)
+
         ctx.arc(x, y, inner_radius, start_angle, start_angle + full_sweep * fraction_5h)
         ctx.stroke()
 

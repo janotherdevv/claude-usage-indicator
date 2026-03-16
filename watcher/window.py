@@ -6,10 +6,11 @@ import cairo
 import math
 from datetime import datetime
 
-from .theme import tier, get_classic_bar_css, utilization_color
+from .theme import tier, get_classic_bar_css, utilization_color, get_palette
 from .api import format_reset_time
 from .icons import draw_obsidian_gauge
 from .config import get_theme
+from .i18n import t
 
 def _hex(rgb):
     return f"#{int(rgb[0]*255):02x}{int(rgb[1]*255):02x}{int(rgb[2]*255):02x}"
@@ -122,7 +123,7 @@ class ObsidianWindow(BaseWindow):
 
         # Status Header
         self._status_label = Gtk.Label()
-        self._status_label.set_markup('<span foreground="#71717A" weight="bold">INITIALIZING...</span>')
+        self._status_label.set_markup(f'<span foreground="#71717A" weight="bold">{t("status.initializing")}</span>')
         self._status_label.set_halign(Gtk.Align.START)
         self._status_label.set_line_wrap(True)
         main_box.pack_start(self._status_label, False, False, 0)
@@ -131,7 +132,7 @@ class ObsidianWindow(BaseWindow):
         gauge_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.darea = Gtk.DrawingArea()
         self.darea.set_size_request(200, 200)
-        self.darea.set_tooltip_text("Gauge de uso: cargando…")
+        self.darea.set_tooltip_text(t("label.gauge_loading"))
         self.darea.connect("draw", self._on_draw)
         gauge_box.pack_start(self.darea, True, True, 0)
         main_box.pack_start(gauge_box, True, True, 0)
@@ -140,10 +141,10 @@ class ObsidianWindow(BaseWindow):
         metrics_col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         main_box.pack_start(metrics_col, False, False, 0)
 
-        self._m_daily = self._make_metric("DIARIO")
+        self._m_daily = self._make_metric(t("label.daily"))
         metrics_col.pack_start(self._m_daily["box"], False, False, 0)
 
-        self._m_weekly = self._make_metric("SEMANAL")
+        self._m_weekly = self._make_metric(t("label.weekly"))
         metrics_col.pack_start(self._m_weekly["box"], False, False, 0)
 
         self._tick_id = GLib.timeout_add(32, self._tick)
@@ -190,13 +191,13 @@ class ObsidianWindow(BaseWindow):
             draw_obsidian_gauge(ctx, cx, cy, size, self.five_h_util, self.seven_d_util)
             display_util = max(self.five_h_util, self.seven_d_util)
 
-        t = tier(display_util)
+        tr = tier(display_util)
         r, g, b = utilization_color(display_util)
 
-        glow_count = 1 if t == 0 else (2 if t == 1 else (4 if t == 2 else 5))
-        glow_alpha = 0.08 if t == 0 else (0.12 if t == 1 else (0.15 if t == 2 else 0.22))
+        glow_count = 1 if tr == 0 else (2 if tr == 1 else (4 if tr == 2 else 5))
+        glow_alpha = 0.08 if tr == 0 else (0.12 if tr == 1 else (0.15 if tr == 2 else 0.22))
 
-        if t >= 2:
+        if tr >= 2:
             glow_alpha *= (0.8 + 0.2 * math.sin(datetime.now().timestamp() * 4))
 
         for i in range(1, glow_count + 1):
@@ -208,10 +209,37 @@ class ObsidianWindow(BaseWindow):
         ctx.set_font_size(size * 0.18)
 
         text = f"{display_util:.0f}%"
+        
+        # Factor de transición suave para el 90% -> 100%
+        # Esto elimina el salto brusco de tamaño y color
+        t_factor = max(0.0, min(1.0, (display_util - 90) / 10.0))
+        
+        # Tamaño de fuente interpolado (0.18 -> 0.155)
+        font_size_mult = 0.18 - (t_factor * 0.025)
+        ctx.set_font_size(size * font_size_mult)
+        
         extents = ctx.text_extents(text)
+        tx = cx - extents.width/2 - extents.x_bearing
+        ty = cy + extents.height/2
 
-        ctx.set_source_rgba(r, g, b, 0.95)
-        ctx.move_to(cx - extents.width/2 - extents.x_bearing, cy + extents.height/2)
+        # Propuesta 2: Halo Ultra-Fino (Invisible/Ethereal)
+        # La opacidad del halo aumenta con el factor de transición
+        bg_r, bg_g, bg_b = get_palette()["bg"]
+        ctx.set_source_rgba(bg_r, bg_g, bg_b, 0.4 + (t_factor * 0.25))
+        ctx.set_line_width(size * 0.012)
+        ctx.move_to(tx, ty)
+        ctx.text_path(text)
+        ctx.stroke()
+
+        # Color de texto interpolado (Armonía profunda)
+        # Transicionamos de (r, g, b) brillante a (r*0.1, g*0.1, b*0.1) casi negro
+        text_r = r * (1.0 - (t_factor * 0.9))
+        text_g = g * (1.0 - (t_factor * 0.9))
+        text_b = b * (1.0 - (t_factor * 0.9))
+        
+        ctx.set_source_rgba(text_r, text_g, text_b, 0.95 + (t_factor * 0.03))
+
+        ctx.move_to(tx, ty)
         ctx.show_text(text)
 
     def _tick(self):
@@ -250,7 +278,7 @@ class ObsidianWindow(BaseWindow):
         self._pulsing = False
 
         if error:
-            self._status_label.set_markup('<span foreground="#71717A">CONNECTION INTERRUPTED</span>')
+            self._status_label.set_markup(f'<span foreground="#71717A">{t("status.interrupted")}</span>')
             return
 
         if usage_data:
@@ -266,21 +294,21 @@ class ObsidianWindow(BaseWindow):
 
             markup = self._status_markup(max(new_5h, new_7d))
             if stale:
-                markup += '\n<span foreground="#71717A" size="small">(datos desactualizados)</span>'
+                markup += f'\n<span foreground="#71717A" size="small">{t("label.stale")}</span>'
             self._status_label.set_markup(markup)
-            self.darea.set_tooltip_text(f"Diario (5h): {new_5h:.0f}%  ·  Semanal (7d): {new_7d:.0f}%")
+            self.darea.set_tooltip_text(t("label.gauge_tooltip", five_h=new_5h, seven_d=new_7d))
             
             color_diario = _hex(utilization_color(new_5h))
-            self._m_daily["lbl"].set_markup(f'<span foreground="{color_diario}">DIARIO</span>')
+            self._m_daily["lbl"].set_markup(f'<span foreground="{color_diario}">{t("label.daily")}</span>')
             self._m_daily["val"].set_text(f"{new_5h:.0f}%")
             res_5h = usage_data.get("five_hour", {}).get("resets_at", "")
-            self._m_daily["reset"].set_text(f"RESETS {format_reset_time(res_5h).upper()}" if res_5h else "")
+            self._m_daily["reset"].set_text(t("label.resets", time=format_reset_time(res_5h).upper()) if res_5h else "")
 
             color_semanal = _hex(utilization_color(new_7d))
-            self._m_weekly["lbl"].set_markup(f'<span foreground="{color_semanal}">SEMANAL</span>')
+            self._m_weekly["lbl"].set_markup(f'<span foreground="{color_semanal}">{t("label.weekly")}</span>')
             self._m_weekly["val"].set_text(f"{new_7d:.0f}%")
             res_7d = usage_data.get("seven_day", {}).get("resets_at", "")
-            self._m_weekly["reset"].set_text(f"RESETS {format_reset_time(res_7d).upper()}" if res_7d else "")
+            self._m_weekly["reset"].set_text(t("label.resets", time=format_reset_time(res_7d).upper()) if res_7d else "")
 
 # --- Classic Design ---
 
@@ -323,17 +351,22 @@ menuitem:hover {
 
 def _status_markup(utilization, text_color="#F4F4F5"):
     if utilization >= 100:
-        label, desc = "LIMIT REACHED", "Tokens fully exhausted"
+        label = t("status.limit_label")
+        desc  = t("status.limit_desc")
     else:
-        t = tier(utilization)
-        if t == 0:
-            label, desc = "SAFE", "All systems operational"
-        elif t == 1:
-            label, desc = "WARNING", "Approaching limit"
-        elif t == 2:
-            label, desc = "CRITICAL", "Usage capacity critical"
+        tr = tier(utilization)
+        if tr == 0:
+            label = t("status.safe_label")
+            desc  = t("status.safe_desc")
+        elif tr == 1:
+            label = t("status.warning_label")
+            desc  = t("status.warning_desc")
+        elif tr == 2:
+            label = t("status.critical_label")
+            desc  = t("status.critical_desc")
         else:
-            label, desc = "EXTREME", "Limit almost exhausted"
+            label = t("status.extreme_label")
+            desc  = t("status.extreme_desc")
     color = _hex(utilization_color(utilization))
     return (
         f'<span foreground="{color}" weight="bold" size="small">{label}</span>\n'
@@ -358,7 +391,7 @@ class ClassicWindow(BaseWindow):
         self._seven_d = self._make_section("7d")
         box.pack_start(self._seven_d["vbox"], False, False, 0)
 
-        self._ts_label = Gtk.Label(label="Fetching...")
+        self._ts_label = Gtk.Label(label=t("classic.fetching"))
         self._ts_label.set_halign(Gtk.Align.END)
         self._ts_label.get_style_context().add_class("dim-label")
         box.pack_start(self._ts_label, False, False, 0)
@@ -415,7 +448,7 @@ class ClassicWindow(BaseWindow):
         self._pulsing = False
 
         if error:
-            self._status_label.set_markup('<span foreground="#E5A50A">Connection error</span>')
+            self._status_label.set_markup(f'<span foreground="#E5A50A">{t("classic.conn_error")}</span>')
             self._ts_label.set_text(error)
             return
 
@@ -431,9 +464,9 @@ class ClassicWindow(BaseWindow):
 
         if updated_at:
             delta = (datetime.now() - updated_at).total_seconds()
-            ts = "Updated just now" if delta < 10 else f"Updated {updated_at.strftime('%H:%M')}"
+            ts = t("classic.updated_now") if delta < 10 else t("classic.updated_at", time=updated_at.strftime('%H:%M'))
             if stale:
-                ts += " (desact.)"
+                ts += f" {t('classic.stale_suffix')}"
             self._ts_label.set_text(ts)
 
     def _fill_section(self, section, data):
@@ -444,7 +477,9 @@ class ClassicWindow(BaseWindow):
         section["provider"].load_from_data(get_classic_bar_css(utilization))
         resets_at = data.get("resets_at", "")
         if resets_at:
-            section["reset_lbl"].set_text(f"resets {format_reset_time(resets_at)}")
+            section["reset_lbl"].set_text(t("classic.resets", time=format_reset_time(resets_at)))
+        else:
+            section["reset_lbl"].set_text("")
 
 # --- Factory ---
 
