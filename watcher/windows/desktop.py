@@ -1,15 +1,19 @@
 import math
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk
+from gi.repository import Gtk, GLib
 from datetime import datetime
 
 import cairo
 
 from .base import BaseWindow
-from ..theme import utilization_color
+from ..theme import utilization_color, tier as get_tier
 from ..api import format_reset_time
 from ..i18n import t
+
+_GAUGE_W = 200          # logical-pixel width for both gauges
+_GAUGE_H_PRIMARY = 125  # 5h — larger, more prominent
+_GAUGE_H_SECONDARY = 100  # 7d — smaller, secondary
 
 
 def _draw_gauge(ctx, widget, cx, cy, r, utilization):
@@ -50,8 +54,8 @@ def _draw_gauge(ctx, widget, cx, cy, r, utilization):
         a = math.pi + frac * math.pi
         cos_a, sin_a = math.cos(a), math.sin(a)
         ctx.set_source_rgba(fg.red, fg.green, fg.blue, 0.22)
-        ctx.move_to(cx + r * 0.62 * cos_a, cy + r * 0.62 * sin_a)
-        ctx.line_to(cx + r * 0.79 * cos_a, cy + r * 0.79 * sin_a)
+        ctx.move_to(cx + r * 0.58 * cos_a, cy + r * 0.58 * sin_a)
+        ctx.line_to(cx + r * 0.82 * cos_a, cy + r * 0.82 * sin_a)
         ctx.stroke()
 
     # --- Fill arc (utilization portion) ---
@@ -65,11 +69,12 @@ def _draw_gauge(ctx, widget, cx, cy, r, utilization):
         ctx.stroke()
 
     # --- Needle (stops at 82% of arc radius for a realistic look) ---
+    pulse = getattr(widget, 'pulse_alpha', 1.0)
     angle = math.pi + (min(utilization, 100) / 100.0) * math.pi
     nx = cx + r * 0.82 * math.cos(angle)
     ny = cy + r * 0.82 * math.sin(angle)
     ur, ug, ub = utilization_color(utilization)
-    ctx.set_source_rgba(ur, ug, ub, 1.0)
+    ctx.set_source_rgba(ur, ug, ub, pulse)
     ctx.set_line_width(r * 0.04)
     ctx.set_line_cap(cairo.LINE_CAP_ROUND)
     ctx.move_to(cx, cy)
@@ -77,13 +82,23 @@ def _draw_gauge(ctx, widget, cx, cy, r, utilization):
     ctx.stroke()
 
     # --- Center pivot dot ---
-    ctx.set_source_rgba(ur, ug, ub, 1.0)
+    ctx.set_source_rgba(ur, ug, ub, pulse)
     ctx.arc(cx, cy, r * 0.07, 0, 2 * math.pi)
     ctx.fill()
 
-    # --- Percentage text (in lower dial face, above pivot) ---
+    # --- Period label (upper dial face, e.g. "DAILY" / "WEEKLY") ---
+    period = getattr(widget, 'period_label', '')
+    if period:
+        ctx.set_source_rgba(fg.red, fg.green, fg.blue, 0.38)
+        ctx.select_font_face("Inter", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+        ctx.set_font_size(r * 0.16)
+        ext = ctx.text_extents(period)
+        ctx.move_to(cx - ext.width / 2 - ext.x_bearing, cy - r * 0.65)
+        ctx.show_text(period)
+
+    # --- Percentage text (lower dial face, above pivot) ---
     ctx.set_source_rgba(fg.red, fg.green, fg.blue, 0.9)
-    ctx.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+    ctx.select_font_face("Inter", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
     ctx.set_font_size(r * 0.30)
     text = f"{utilization:.0f}%"
     extents = ctx.text_extents(text)
@@ -93,10 +108,12 @@ def _draw_gauge(ctx, widget, cx, cy, r, utilization):
 
 class _GaugeArea(Gtk.DrawingArea):
     """A DrawingArea that renders one semicircular fuel gauge."""
-    def __init__(self):
+    def __init__(self, height=_GAUGE_H_PRIMARY):
         super().__init__()
         self.utilization = 0.0
-        self.set_size_request(200, 115)
+        self.pulse_alpha = 1.0
+        self.period_label = ""
+        self.set_size_request(_GAUGE_W, height)
         self.connect("draw", self._on_draw)
 
     def _on_draw(self, widget, ctx):
@@ -112,33 +129,30 @@ class DesktopWindow(BaseWindow):
     """GTK-native popup with two stacked Cairo semicircular fuel-gauge dials."""
 
     def __init__(self, auto_hide=True):
-        super().__init__(auto_hide=auto_hide)
-        self.window.set_border_width(16)
+        super().__init__(auto_hide=auto_hide, border_width=16)
+
+        self._phase = 0.0
+        self._timer_id = None
 
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         box.set_size_request(230, -1)
         self.window.add(box)
 
-        # --- Daily (5h) gauge ---
-        self._lbl_daily = Gtk.Label()
-        self._lbl_daily.set_markup(f'<span size="small" alpha="70%">{t("label.daily")}</span>')
-        self._lbl_daily.set_halign(Gtk.Align.CENTER)
-        box.pack_start(self._lbl_daily, False, False, 0)
-
+        # --- Daily (5h) gauge — period label drawn inside Cairo ---
         self._gauge_5h = _GaugeArea()
+        self._gauge_5h.period_label = t("label.daily")
         box.pack_start(self._gauge_5h, False, False, 0)
 
         self._reset_5h = Gtk.Label(label="")
         self._reset_5h.set_halign(Gtk.Align.CENTER)
         box.pack_start(self._reset_5h, False, False, 2)
 
-        # --- Weekly (7d) gauge ---
-        self._lbl_weekly = Gtk.Label()
-        self._lbl_weekly.set_markup(f'<span size="small" alpha="70%">{t("label.weekly")}</span>')
-        self._lbl_weekly.set_halign(Gtk.Align.CENTER)
-        box.pack_start(self._lbl_weekly, False, False, 0)
+        sep = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        box.pack_start(sep, False, False, 6)
 
-        self._gauge_7d = _GaugeArea()
+        # --- Weekly (7d) gauge — period label drawn inside Cairo ---
+        self._gauge_7d = _GaugeArea(height=_GAUGE_H_SECONDARY)
+        self._gauge_7d.period_label = t("label.weekly")
         box.pack_start(self._gauge_7d, False, False, 0)
 
         self._reset_7d = Gtk.Label(label="")
@@ -150,9 +164,37 @@ class DesktopWindow(BaseWindow):
         self._status_lbl.set_halign(Gtk.Align.CENTER)
         box.pack_start(self._status_lbl, False, False, 0)
 
+    def _tick(self):
+        """Pulse needle+pivot when tier >= 2. Auto-cancels when tier drops below 2."""
+        tier_val = get_tier(max(self._gauge_5h.utilization, self._gauge_7d.utilization))
+        if tier_val < 2:
+            self._gauge_5h.pulse_alpha = 1.0
+            self._gauge_7d.pulse_alpha = 1.0
+            self._gauge_5h.queue_draw()
+            self._gauge_7d.queue_draw()
+            self._timer_id = None
+            return False  # cancel timer
+
+        # tier 3+ (extreme/limit): fast + deep pulse; tier 2 (critical): slow + subtle
+        if tier_val >= 3:
+            speed, min_a = 0.14, 0.20
+        else:
+            speed, min_a = 0.06, 0.55
+
+        self._phase = (self._phase + speed) % (2 * math.pi)
+        alpha = min_a + (1.0 - min_a) * (0.5 - 0.5 * math.cos(self._phase))
+
+        self._gauge_5h.pulse_alpha = alpha
+        self._gauge_5h.queue_draw()
+        if get_tier(self._gauge_7d.utilization) >= 2:
+            self._gauge_7d.pulse_alpha = alpha
+            self._gauge_7d.queue_draw()
+
+        return True  # keep timer running
+
     def update(self, usage_data=None, error=None, updated_at=None, stale=False, history=None):
         if error:
-            self._status_lbl.set_text(t("classic.conn_error"))
+            self._status_lbl.set_text(t("shared.conn_error"))
             return
 
         if usage_data:
@@ -164,20 +206,23 @@ class DesktopWindow(BaseWindow):
             self._gauge_5h.queue_draw()
             self._gauge_7d.queue_draw()
 
+            if get_tier(max(five_h, seven_d)) >= 2 and self._timer_id is None:
+                self._timer_id = GLib.timeout_add(50, self._tick)
+
             res_5h = usage_data.get("five_hour", {}).get("resets_at", "")
             res_7d = usage_data.get("seven_day", {}).get("resets_at", "")
             self._reset_5h.set_markup(
-                f'<span size="small" alpha="60%">{t("label.resets", time=format_reset_time(res_5h))}</span>'
+                f'<span size="small" alpha="75%">{t("label.resets", time=format_reset_time(res_5h))}</span>'
                 if res_5h else ""
             )
             self._reset_7d.set_markup(
-                f'<span size="small" alpha="60%">{t("label.resets", time=format_reset_time(res_7d))}</span>'
+                f'<span size="small" alpha="75%">{t("label.resets", time=format_reset_time(res_7d))}</span>'
                 if res_7d else ""
             )
 
         if updated_at:
             delta = (datetime.now() - updated_at).total_seconds()
-            ts = t("classic.updated_now") if delta < 10 else t("classic.updated_at", time=updated_at.strftime('%H:%M'))
+            ts = t("shared.updated_now") if delta < 10 else t("shared.updated_at", time=updated_at.strftime('%H:%M'))
             if stale:
-                ts += f" {t('classic.stale_suffix')}"
-            self._status_lbl.set_markup(f'<span size="small" alpha="55%">{ts}</span>')
+                ts += f" {t('shared.stale_suffix')}"
+            self._status_lbl.set_markup(f'<span size="small" alpha="65%">{ts}</span>')
