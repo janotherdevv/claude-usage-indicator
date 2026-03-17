@@ -22,6 +22,7 @@ _STRINGS_EN = {
     # Status labels (popup header)
     "status.initializing":  "INITIALIZING...",
     "status.interrupted":   "CONNECTION INTERRUPTED",
+    "status.interact_to_activate": "Interact with CLAUDE to activate",
     "status.safe_label":    "SAFE",
     "status.safe_desc":     "All systems operational",
     "status.warning_label": "WARNING",
@@ -104,6 +105,7 @@ _STRINGS_ES = {
     # Status labels
     "status.initializing":  "INICIANDO...",
     "status.interrupted":   "CONEXI\u00d3N INTERRUMPIDA",
+    "status.interact_to_activate": "Interact\u00faa con CLAUDE para activar",
     "status.safe_label":    "SEGURO",
     "status.safe_desc":     "Todo en orden",
     "status.warning_label": "AVISO",

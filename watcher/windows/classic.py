@@ -165,25 +165,26 @@ class ClassicWindow(BaseWindow):
     def update(self, usage_data=None, error=None, updated_at=None, stale=False, history=None):
         self._pulsing = False
 
-        if error:
-            self._status_label.set_markup(f'<span foreground="#E5A50A">{t("shared.conn_error")}</span>')
-            return
+        if history is not None:
+            self.history = history
+        elif not self.history:
+            from ..history import get_weekly_history
+            self.history = get_weekly_history()
 
         if usage_data:
-            if history is not None:
-                self.history = history
-            else:
-                from ..history import get_weekly_history
-                self.history = get_weekly_history()
-
             five_h_util = usage_data.get("five_hour", {}).get("utilization", 0)
             seven_d_util = usage_data.get("seven_day", {}).get("utilization", 0)
 
-            dominant = max(five_h_util, seven_d_util)
-            self._status_label.set_markup(_status_markup(dominant, text_color="#E8E2F4"))
+            if error:
+                self._status_label.set_markup(f'<span foreground="#E5A50A" weight="bold">{t("status.interrupted")}</span>\n<span foreground="#A1A1AA" size="small">{t("status.interact_to_activate")}</span>')
+            else:
+                dominant = max(five_h_util, seven_d_util)
+                self._status_label.set_markup(_status_markup(dominant, text_color="#E8E2F4"))
 
             self._fill_section(self._five_h, usage_data.get("five_hour", {}))
             self._fill_section(self._seven_d, usage_data.get("seven_day", {}))
+        elif error:
+            self._status_label.set_markup(f'<span foreground="#E5A50A" weight="bold">{t("status.interrupted")}</span>\n<span foreground="#A1A1AA" size="small">{t("status.interact_to_activate")}</span>')
 
         if updated_at:
             delta = (datetime.now() - updated_at).total_seconds()

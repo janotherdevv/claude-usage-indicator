@@ -281,19 +281,18 @@ class DesktopWindow(BaseWindow):
         return True  # keep timer running
 
     def update(self, usage_data=None, error=None, updated_at=None, stale=False, history=None):
-        if error:
-            self._status_label.set_markup(f'<span size="small">{t("shared.conn_error")}</span>')
-            self._status_lbl.set_text("")
-            return
+        weekly_history = history if history is not None else get_weekly_history()
+        self._gauge_7d.history = weekly_history
 
         if usage_data:
             five_h = usage_data.get("five_hour", {}).get("utilization", 0)
             seven_d = usage_data.get("seven_day", {}).get("utilization", 0)
 
-            self._status_label.set_markup(_status_markup(max(five_h, seven_d), text_color=None))
-
-            weekly_history = history if history is not None else get_weekly_history()
-            self._gauge_7d.history = weekly_history
+            if error:
+                self._status_label.set_markup(f'<span foreground="#EF4444" weight="bold" size="small">{t("status.interrupted")}</span>\n<span foreground="#A1A1AA" size="x-small">{t("status.interact_to_activate")}</span>')
+                self._status_lbl.set_text("")
+            else:
+                self._status_label.set_markup(_status_markup(max(five_h, seven_d), text_color=None))
 
             self._gauge_5h.utilization = five_h
             self._gauge_7d.utilization = seven_d
@@ -313,6 +312,9 @@ class DesktopWindow(BaseWindow):
                 f'<span size="small" alpha="75%">{t("label.resets", time=format_reset_time(res_7d))}</span>'
                 if res_7d else ""
             )
+        elif error:
+            self._status_label.set_markup(f'<span foreground="#EF4444" weight="bold" size="small">{t("status.interrupted")}</span>\n<span foreground="#A1A1AA" size="x-small">{t("status.interact_to_activate")}</span>')
+            self._status_lbl.set_text("")
 
         if updated_at:
             delta = (datetime.now() - updated_at).total_seconds()

@@ -45,6 +45,38 @@ def _current_cycle_reset(pattern, log_files):
     return current
 
 
+def get_last_known_usage():
+    """Busca la última entrada de uso en el log activo para restaurar el estado tras un reinicio."""
+    if not LOG_PATH.exists():
+        return None
+    
+    pattern_usage = re.compile(
+        r"5h window: (\d+\.\d+)% \(resets: ([^)]+)\) \| 7d window: (\d+\.\d+)% \(resets: ([^)]+)\)"
+    )
+    
+    last_data = None
+    try:
+        # Leemos el final del fichero (últimas 20 líneas aprox) para eficiencia
+        with open(LOG_PATH, "rb") as f:
+            f.seek(0, 2)
+            filesize = f.tell()
+            f.seek(max(0, filesize - 2000))
+            lines = f.read().decode(errors="replace").splitlines()
+            
+            for line in reversed(lines):
+                m = pattern_usage.search(line)
+                if m:
+                    u5h, r5h, u7d, r7d = m.groups()
+                    last_data = {
+                        "five_hour": {"utilization": float(u5h), "resets_at": r5h},
+                        "seven_day": {"utilization": float(u7d), "resets_at": r7d}
+                    }
+                    break
+    except Exception:
+        pass
+    return last_data
+
+
 def get_weekly_history():
     """
     Extrae los picos de uso diario directamente del archivo de logs,

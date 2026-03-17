@@ -200,15 +200,12 @@ class ObsidianWindow(BaseWindow):
     def update(self, usage_data=None, error=None, updated_at=None, stale=False, history=None):
         self._pulsing = False
 
-        if error:
-            self._status_label.set_markup(f'<span foreground="#71717A">{t("status.interrupted")}</span>')
-            return
+        if history is not None:
+            self.history = history
+        elif not self.history:
+            self.history = get_weekly_history()
 
         if usage_data:
-            if history is not None:
-                self.history = history
-            else:
-                self.history = get_weekly_history()
             new_5h = usage_data.get("five_hour", {}).get("utilization", 0)
             new_7d = usage_data.get("seven_day", {}).get("utilization", 0)
 
@@ -219,9 +216,12 @@ class ObsidianWindow(BaseWindow):
             if self._tick_id is None:
                 self._tick_id = GLib.timeout_add(32, self._tick)
 
-            markup = self._status_markup(max(new_5h, new_7d))
-            if stale:
-                markup += f'\n<span foreground="#71717A" size="small">{t("label.stale")}</span>'
+            if error:
+                markup = f'<span foreground="#EF4444" weight="bold">{t("status.interrupted")}</span>\n<span foreground="#71717A" size="small">{t("status.interact_to_activate")}</span>'
+            else:
+                markup = self._status_markup(max(new_5h, new_7d))
+                if stale:
+                    markup += f'\n<span foreground="#71717A" size="small">{t("label.stale")}</span>'
             self._status_label.set_markup(markup)
             self.darea.set_tooltip_text(t("label.gauge_tooltip", five_h=new_5h, seven_d=new_7d))
 
@@ -236,3 +236,5 @@ class ObsidianWindow(BaseWindow):
             self._m_weekly["val"].set_text(f"{new_7d:.0f}%")
             res_7d = usage_data.get("seven_day", {}).get("resets_at", "")
             self._m_weekly["reset"].set_text(t("label.resets", time=format_reset_time(res_7d).upper()) if res_7d else "")
+        elif error:
+            self._status_label.set_markup(f'<span foreground="#EF4444" weight="bold">{t("status.interrupted")}</span>\n<span foreground="#71717A" size="small">{t("status.interact_to_activate")}</span>')

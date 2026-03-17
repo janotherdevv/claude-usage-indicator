@@ -18,28 +18,42 @@ from .i18n import t
 from .theme import tier, get_menu_css
 from .icons import render_pixbuf
 from .api import read_token, fetch_usage, format_reset_time
+from .history import get_last_known_usage
 from .window import UsageWindow
 
 
 class ClaudeWatcher(Gtk.Application):
     def __init__(self, autostart=False):
         super().__init__(application_id="com.claudeusage.watcher")
-        self.usage_data = None
+        # Intentar restaurar el último estado conocido desde el disco
+        self.usage_data = get_last_known_usage()
         self.last_error = None
-        self.last_updated = None
+        self.last_updated = datetime.now() if self.usage_data else None
         self._fetching = False
-        self._stale = False
+        self._stale = True if self.usage_data else False
         self.popup_window = None
         self._last_notified_tier = None
         self._current_interval = POLL_INTERVAL
         self._poll_timer_id = None
         self._autostart = autostart
-        
+
+        # Si tenemos datos de sesión previa, configurar el icono inicial
+        if self.usage_data:
+            GLib.idle_add(self._restore_initial_state)
+
         # Inicializar Notify para notificaciones robustas en Ubuntu/Linux
         Notify.init("Claude Usage Watcher")
         Notify.set_app_name("com.claudeusage.watcher")
         _log.debug("ClaudeWatcher initialized with Notify support")
 
+    def _restore_initial_state(self):
+        """Pre-rellena el icono y tooltip con datos de la sesión anterior."""
+        if not self.usage_data:
+            return
+        u5h = self.usage_data.get("five_hour", {}).get("utilization", 0)
+        u7d = self.usage_data.get("seven_day", {}).get("utilization", 0)
+        self.status_icon.set_from_pixbuf(render_pixbuf(u5h, u7d))
+        self.status_icon.set_tooltip_text(t("tooltip.stale", five_h=u5h, seven_d=u7d))
     def do_activate(self):
         # Mantenemos la aplicación viva aunque no haya ventanas abiertas
         self.hold()
@@ -298,17 +312,16 @@ class ClaudeWatcher(Gtk.Application):
         if not error:
             self._apply_usage_data(data)
             self._check_tier_notifications(data)
-        elif "429" in error:
-            # Rate limited — mostramos datos cacheados con indicador de desactualización
+        else:
+            self.last_error = error
             self._stale = True
             if self.usage_data:
+                # Mostrar últimos datos conocidos con indicador de desactualización
                 five_h = self.usage_data.get("five_hour", {}).get("utilization", 0)
                 seven_d = self.usage_data.get("seven_day", {}).get("utilization", 0)
                 self.status_icon.set_tooltip_text(
                     t("tooltip.stale", five_h=five_h, seven_d=seven_d)
                 )
-        else:
-            self.last_error = error
 
         # Calcular próximo intervalo dinámico y reprogramar
         self._current_interval = self._calculate_next_interval(data, error)
