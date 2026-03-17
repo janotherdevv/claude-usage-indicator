@@ -13,9 +13,9 @@ if ! python3 -c "import gi; gi.require_version('Gtk', '3.0'); from gi.repository
     sudo apt install -y python3-gi gir1.2-gtk-3.0 python3-cairo gir1.2-notify-0.7
 fi
 
-# Install the package in editable mode or normally
+# Install the package (non-editable so files are copied to user's site-packages)
 echo "Installing Python package..."
-python3 -m pip install -e . 2>/dev/null || python3 -m pip install -e . --break-system-packages
+python3 -m pip install . 2>/dev/null || python3 -m pip install . --break-system-packages
 
 # Generate icons once so the desktop file has something to show
 echo "Generating initial icons..."
@@ -24,11 +24,13 @@ python3 -c "from watcher.icons import generate_icons; generate_icons()"
 chmod +x "$SCRIPT_DIR/claude_usage_watcher.py"
 
 mkdir -p "$AUTOSTART_DIR"
+EXEC_PATH="$(python3 -c "import sysconfig; print(sysconfig.get_path('scripts', 'posix_user'))")/claude-usage-watcher"
+
 cat > "$DESKTOP_FILE" <<EOF
 [Desktop Entry]
 Type=Application
 Name=Claude Usage Watcher
-Exec=claude-usage-watcher --autostart
+Exec=$EXEC_PATH --autostart
 Icon=$HOME/.cache/claude-usage-watcher/assets/icon_current.png
 Comment=Shows Claude API usage in the system tray
 Categories=Utility;
