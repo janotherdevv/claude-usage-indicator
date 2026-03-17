@@ -258,12 +258,12 @@ class ControlDial(Gtk.DrawingArea):
 # ── Control Window ────────────────────────────────────────────────────────────
 
 _CONTROL_CSS = b"""
-window {
+.visual-test-control {
     background-color: #0D0D12;
     border: 1px solid rgba(255, 255, 255, 0.09);
     border-radius: 16px;
 }
-label {
+.visual-test-control label {
     color: #E4E4E7;
     font-family: "Inter", "Cantarell", sans-serif;
 }
@@ -340,28 +340,28 @@ label {
 .ctrl-btn-manual-on:hover {
     background-color: rgba(103, 232, 249, 0.14);
 }
-.speed-row label {
+.visual-test-control .speed-row label {
     color: rgba(255, 255, 255, 0.3);
     font-size: 0.7em;
     letter-spacing: 0.07em;
 }
-scale trough {
+.visual-test-control scale trough {
     background-color: rgba(255, 255, 255, 0.07);
     min-height: 3px;
     border-radius: 2px;
 }
-scale trough highlight {
+.visual-test-control scale trough highlight {
     background-color: rgba(245, 158, 11, 0.5);
     border-radius: 2px;
 }
-scale slider {
+.visual-test-control scale slider {
     background-color: #F59E0B;
     border-radius: 50%;
     min-width: 12px;
     min-height: 12px;
     border: none;
 }
-.reset-btn {
+.visual-test-control .reset-btn {
     background-color: transparent;
     color: rgba(255, 255, 255, 0.22);
     border: 1px solid rgba(255, 255, 255, 0.07);
@@ -370,11 +370,11 @@ scale slider {
     font-size: 0.8em;
     letter-spacing: 0.04em;
 }
-.reset-btn:hover {
+.visual-test-control .reset-btn:hover {
     color: rgba(255, 255, 255, 0.5);
     border-color: rgba(255, 255, 255, 0.15);
 }
-separator {
+.visual-test-control separator {
     background-color: rgba(255, 255, 255, 0.06);
     margin: 2px 0;
 }
@@ -402,6 +402,8 @@ class ControlWindow:
         visual = screen.get_rgba_visual()
         if visual:
             self.window.set_visual(visual)
+
+        self.window.get_style_context().add_class("visual-test-control")
 
         provider = Gtk.CssProvider()
         provider.load_from_data(_CONTROL_CSS)
