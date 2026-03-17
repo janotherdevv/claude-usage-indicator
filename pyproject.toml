@@ -27,3 +27,9 @@ claude-usage-watcher = "watcher.tray:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["watcher"]
+
+[tool.hatch.build]
+include = [
+  "watcher/**/*.css",
+  "watcher/**/*.svg",
+]

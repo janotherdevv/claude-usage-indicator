@@ -3,9 +3,6 @@ import logging.handlers
 from datetime import datetime
 from pathlib import Path
 
-# Raíz del proyecto para recursos estáticos (si hubiera)
-PROJECT_ROOT = Path(__file__).parent.parent
-
 # Directorios de datos del usuario
 USER_DATA_DIR = Path.home() / ".local" / "share" / "claude-usage-watcher"
 USER_CACHE_DIR = Path.home() / ".cache" / "claude-usage-watcher"
@@ -22,7 +19,7 @@ ASSETS_DIR = USER_CACHE_DIR / "assets"
 ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Icono estático de Claude para notificaciones
-CLAUDE_ICON_PATH = PROJECT_ROOT / "img" / "claude-color.svg"
+CLAUDE_ICON_PATH = Path(__file__).parent / "assets" / "claude-color.svg"
 
 # Configuración de Usuario
 CONFIG_PATH = USER_DATA_DIR / "settings.json"
