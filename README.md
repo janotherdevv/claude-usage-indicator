@@ -2,9 +2,9 @@
 
 A lightweight system tray application for Linux (Ubuntu/GNOME) that displays real-time Claude API usage and token utilization.
 
-| Classic | Obsidian |
-|---------|----------|
-<!--| ![Classic design](readme/img/classic-design-ok.png) | ![Obsidian design](readme/img/obsidian-design-ok.png) |-->
+| Desktop | Obsidian | Classic |
+|---------|----------|---------|
+| ![Desktop theme based](readme/img/Desktop.png) | ![Obsidian](readme/img/Obsidian.png) | ![Classic](readme/img/Classic.png) |
 
 ## Features
 
@@ -92,11 +92,17 @@ claude-usage-watcher/
 └── watcher/
     ├── config.py               ← paths, constants, settings, shared logger
     ├── i18n.py                 ← translation engine with EN/ES and style support
+    ├── history.py              ← logs-to-history extraction and usage persistence
     ├── theme.py                ← tier thresholds, colors, CSS helpers, menu theme
     ├── icons.py                ← Cairo rendering (tray icon + gauge)
     ├── api.py                  ← token reading, API fetch, time formatting
     ├── window.py               ← popup UI (ObsidianWindow, ClassicWindow)
-    └── tray.py                 ← ClaudeWatcher (tray icon + polling)
+    ├── tray.py                 ← ClaudeWatcher (tray icon + polling)
+    └── windows/                ← specialized UI designs (Obsidian, Classic, Desktop)
+        ├── base.py             ← shared popup logic
+        ├── obsidian.py         ← modern concentric rings
+        ├── classic.py          ← traditional progress bars
+        └── desktop.py          ← fuel-gauge style dashboard
 ```
 
 ## License
