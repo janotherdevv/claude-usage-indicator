@@ -48,7 +48,7 @@ class ClaudeWatcher(Gtk.Application):
 
     def _restore_initial_state(self):
         """Pre-rellena el icono y tooltip con datos de la sesión anterior."""
-        if not self.usage_data:
+        if not self.usage_data or not hasattr(self, "status_icon"):
             return
         u5h = self.usage_data.get("five_hour", {}).get("utilization", 0)
         u7d = self.usage_data.get("seven_day", {}).get("utilization", 0)
@@ -520,7 +520,9 @@ class ClaudeWatcher(Gtk.Application):
         )
 
     def run(self):
-        super().run(sys.argv)
+        # Filtrar flags propios para que GTK no los rechace como desconocidos
+        gtk_argv = [a for a in sys.argv if a not in ("--autostart", "--visual-test")]
+        super().run(gtk_argv)
 
 
 def main():

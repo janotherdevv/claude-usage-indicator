@@ -88,6 +88,7 @@ Type=Application
 Name=Claude Usage Watcher
 Exec={exec_path} --autostart
 Icon={icon_path}
+Terminal=false
 Comment=Shows Claude API usage in the system tray
 Categories=Utility;
 StartupNotify=false
