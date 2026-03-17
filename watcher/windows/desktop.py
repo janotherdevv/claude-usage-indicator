@@ -6,17 +6,18 @@ from datetime import datetime
 
 import cairo
 
-from .base import BaseWindow
+from .base import BaseWindow, _clear_screen_provider, _status_markup
 from ..theme import utilization_color, tier as get_tier
 from ..api import format_reset_time
+from ..history import get_weekly_history
 from ..i18n import t
 
-_GAUGE_W = 200          # logical-pixel width for both gauges
-_GAUGE_H_PRIMARY = 125  # 5h — larger, more prominent
-_GAUGE_H_SECONDARY = 100  # 7d — smaller, secondary
+_GAUGE_W = 250          # logical-pixel width for both gauges
+_GAUGE_H_PRIMARY = 118  # 5h — larger, more prominent
+_GAUGE_H_SECONDARY = 135  # 7d — smaller, secondary (needs extra top margin for history labels)
 
 
-def _draw_gauge(ctx, widget, cx, cy, r, utilization):
+def _draw_gauge(ctx, widget, cx, cy, r, utilization, history=None):
     """Draw a single semicircular fuel gauge at (cx, cy) with radius r.
 
     Arc geometry (Cairo Y-down: increasing angle = clockwise on screen):
@@ -105,6 +106,44 @@ def _draw_gauge(ctx, widget, cx, cy, r, utilization):
     ctx.move_to(cx - extents.width / 2 - extents.x_bearing, cy - r * 0.22)
     ctx.show_text(text)
 
+    # --- History markers on arc ---
+    if history:
+        for weekday, value in history:
+            if value <= 0:
+                continue
+            angle = math.pi + (min(value, 100) / 100.0) * math.pi
+            cos_a, sin_a = math.cos(angle), math.sin(angle)
+            mr, mg, mb = utilization_color(value)
+
+            # Node on the arc
+            ctx.new_path()
+            ctx.arc(cx + r * cos_a, cy + r * sin_a, r * 0.045, 0, 2 * math.pi)
+            ctx.set_source_rgba(mr, mg, mb, 0.9)
+            ctx.fill()
+
+            # Short tick extending outward from the arc
+            ctx.set_line_width(r * 0.022)
+            ctx.set_line_cap(cairo.LINE_CAP_ROUND)
+            ctx.set_source_rgba(mr, mg, mb, 0.5)
+            ctx.move_to(cx + (r + LINE_W * 0.6) * cos_a, cy + (r + LINE_W * 0.6) * sin_a)
+            ctx.line_to(cx + (r + LINE_W * 1.3) * cos_a, cy + (r + LINE_W * 1.3) * sin_a)
+            ctx.stroke()
+
+            # Day letter floating beyond the tick (only if it fits within widget bounds)
+            day_letter = t(f"day.{weekday}")
+            ctx.select_font_face("Inter", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+            ctx.set_font_size(r * 0.15)
+            ext = ctx.text_extents(day_letter)
+            dist = r + LINE_W * 2.2
+            tx = cx + dist * cos_a - ext.width / 2 - ext.x_bearing
+            ty = cy + dist * sin_a + ext.height / 2
+            widget_w = cx * 2
+            tx = max(4.0, min(tx, widget_w - ext.width - 4))
+            ty = min(ty, cy - 4)
+            ctx.set_source_rgba(mr, mg, mb, 0.95)
+            ctx.move_to(tx, ty)
+            ctx.show_text(day_letter)
+
 
 class _GaugeArea(Gtk.DrawingArea):
     """A DrawingArea that renders one semicircular fuel gauge."""
@@ -113,6 +152,7 @@ class _GaugeArea(Gtk.DrawingArea):
         self.utilization = 0.0
         self.pulse_alpha = 1.0
         self.period_label = ""
+        self.history = []
         self.set_size_request(_GAUGE_W, height)
         self.connect("draw", self._on_draw)
 
@@ -121,12 +161,15 @@ class _GaugeArea(Gtk.DrawingArea):
         h = widget.get_allocated_height()
         cx = w / 2
         cy = h          # center at bottom edge of widget
-        r = min(w * 0.45, h * 0.85)
-        _draw_gauge(ctx, widget, cx, cy, r, self.utilization)
+        r = min(w * 0.36, h * 0.80)
+        _draw_gauge(ctx, widget, cx, cy, r, self.utilization, history=self.history)
 
 
 class DesktopWindow(BaseWindow):
     """GTK-native popup with two stacked Cairo semicircular fuel-gauge dials."""
+
+    def _apply_theme(self, window):
+        _clear_screen_provider()
 
     def __init__(self, auto_hide=True):
         super().__init__(auto_hide=auto_hide, border_width=16)
@@ -135,13 +178,29 @@ class DesktopWindow(BaseWindow):
         self._timer_id = None
 
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-        box.set_size_request(230, -1)
+        box.set_size_request(270, -1)
         self.window.add(box)
 
-        # --- Daily (5h) gauge — period label drawn inside Cairo ---
+        # --- Status label (título + descripción) ---
+        self._status_label = Gtk.Label()
+        self._status_label.set_markup(f'<span size="small">{t("status.initializing")}</span>')
+        self._status_label.set_halign(Gtk.Align.START)
+        self._status_label.set_xalign(0.0)
+        self._status_label.set_line_wrap(True)
+        self._status_label.set_justify(Gtk.Justification.LEFT)
+        self._status_label.set_size_request(-1, 56)
+        self._status_label.set_width_chars(30)
+        self._status_label.set_max_width_chars(30)
+        box.pack_start(self._status_label, False, False, 0)
+
+        # --- Daily (5h) gauge — period label shown as GTK label below ---
         self._gauge_5h = _GaugeArea()
-        self._gauge_5h.period_label = t("label.daily")
         box.pack_start(self._gauge_5h, False, False, 0)
+
+        self._label_5h = Gtk.Label()
+        self._label_5h.set_markup(f'<span size="small" weight="bold">{t("label.daily")}</span>')
+        self._label_5h.set_halign(Gtk.Align.CENTER)
+        box.pack_start(self._label_5h, False, False, 0)
 
         self._reset_5h = Gtk.Label(label="")
         self._reset_5h.set_halign(Gtk.Align.CENTER)
@@ -150,10 +209,14 @@ class DesktopWindow(BaseWindow):
         sep = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
         box.pack_start(sep, False, False, 6)
 
-        # --- Weekly (7d) gauge — period label drawn inside Cairo ---
+        # --- Weekly (7d) gauge — period label shown as GTK label below ---
         self._gauge_7d = _GaugeArea(height=_GAUGE_H_SECONDARY)
-        self._gauge_7d.period_label = t("label.weekly")
         box.pack_start(self._gauge_7d, False, False, 0)
+
+        self._label_7d = Gtk.Label()
+        self._label_7d.set_markup(f'<span size="small" weight="bold">{t("label.weekly")}</span>')
+        self._label_7d.set_halign(Gtk.Align.CENTER)
+        box.pack_start(self._label_7d, False, False, 0)
 
         self._reset_7d = Gtk.Label(label="")
         self._reset_7d.set_halign(Gtk.Align.CENTER)
@@ -194,12 +257,18 @@ class DesktopWindow(BaseWindow):
 
     def update(self, usage_data=None, error=None, updated_at=None, stale=False, history=None):
         if error:
-            self._status_lbl.set_text(t("shared.conn_error"))
+            self._status_label.set_markup(f'<span size="small">{t("shared.conn_error")}</span>')
+            self._status_lbl.set_text("")
             return
 
         if usage_data:
             five_h = usage_data.get("five_hour", {}).get("utilization", 0)
             seven_d = usage_data.get("seven_day", {}).get("utilization", 0)
+
+            self._status_label.set_markup(_status_markup(max(five_h, seven_d), text_color=None))
+
+            weekly_history = history if history is not None else get_weekly_history()
+            self._gauge_7d.history = weekly_history
 
             self._gauge_5h.utilization = five_h
             self._gauge_7d.utilization = seven_d

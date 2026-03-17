@@ -26,6 +26,16 @@ def _set_screen_provider(provider):
         _current_screen_provider = provider
 
 
+def _clear_screen_provider():
+    """Remove any active screen-level CSS provider (used by themes that rely on GTK defaults)."""
+    global _current_screen_provider
+    if _current_screen_provider is not None:
+        Gtk.StyleContext.remove_provider_for_screen(
+            Gdk.Screen.get_default(), _current_screen_provider
+        )
+        _current_screen_provider = None
+
+
 def _status_markup(utilization, text_color="#F4F4F5"):
     if utilization >= 100:
         label = t("status.limit_label")
@@ -45,9 +55,10 @@ def _status_markup(utilization, text_color="#F4F4F5"):
             label = t("status.extreme_label")
             desc  = t("status.extreme_desc")
     color = _hex(utilization_color(utilization))
+    desc_fg = f' foreground="{text_color}"' if text_color else ""
     return (
         f'<span foreground="{color}" weight="bold" size="small">{label}</span>\n'
-        f'<span size="medium" foreground="{text_color}">{desc}</span>'
+        f'<span size="medium"{desc_fg}>{desc}</span>'
     )
 
 
