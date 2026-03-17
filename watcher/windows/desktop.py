@@ -108,33 +108,58 @@ def _draw_gauge(ctx, widget, cx, cy, r, utilization, history=None):
 
     # --- History markers on arc ---
     if history:
+        fill_r, fill_g, fill_b = utilization_color(utilization) if utilization > 0 else (0.5, 0.5, 0.5)
+
         for weekday, value in history:
             if value <= 0:
                 continue
             angle = math.pi + (min(value, 100) / 100.0) * math.pi
             cos_a, sin_a = math.cos(angle), math.sin(angle)
-            mr, mg, mb = utilization_color(value)
+            
+            if value <= utilization:
+                mr, mg, mb = fill_r, fill_g, fill_b
+                alpha = 0.9
+            else:
+                mr, mg, mb = utilization_color(value)
+                alpha = 0.4
 
-            # Node on the arc
+            # Triangular pulse indicator (starts from the outer edge of the stroke)
+            pulse_h = r * 0.10  # Height of the spike *outside* the arc
+            pulse_w = r * 0.035 # Half-width of the spike base
+            
+            # The outer edge of the stroke is at r + LINE_W/2.
+            # We overlap by a microscopic fraction (0.48 instead of 0.5) to avoid antialiasing seams
+            base_r = r + LINE_W * 0.48 
+            tip_r = base_r + pulse_h
+            
             ctx.new_path()
-            ctx.arc(cx + r * cos_a, cy + r * sin_a, r * 0.045, 0, 2 * math.pi)
-            ctx.set_source_rgba(mr, mg, mb, 0.9)
+            # Base point 1 (on the outer edge)
+            ctx.move_to(
+                cx + base_r * cos_a + pulse_w * sin_a,
+                cy + base_r * sin_a - pulse_w * cos_a
+            )
+            # Tip of the spike (pointing outward)
+            ctx.line_to(
+                cx + tip_r * cos_a,
+                cy + tip_r * sin_a
+            )
+            # Base point 2 (on the outer edge)
+            ctx.line_to(
+                cx + base_r * cos_a - pulse_w * sin_a,
+                cy + base_r * sin_a + pulse_w * cos_a
+            )
+            ctx.close_path()
+            
+            # Fill with the same color/alpha as the arc to fuse them visually
+            ctx.set_source_rgba(mr, mg, mb, alpha)
             ctx.fill()
 
-            # Short tick extending outward from the arc
-            ctx.set_line_width(r * 0.022)
-            ctx.set_line_cap(cairo.LINE_CAP_ROUND)
-            ctx.set_source_rgba(mr, mg, mb, 0.5)
-            ctx.move_to(cx + (r + LINE_W * 0.6) * cos_a, cy + (r + LINE_W * 0.6) * sin_a)
-            ctx.line_to(cx + (r + LINE_W * 1.3) * cos_a, cy + (r + LINE_W * 1.3) * sin_a)
-            ctx.stroke()
-
-            # Day letter floating beyond the tick (only if it fits within widget bounds)
+            # Day letter floating just beyond the spike tip
             day_letter = t(f"day.{weekday}")
             ctx.select_font_face("Inter", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
             ctx.set_font_size(r * 0.15)
             ext = ctx.text_extents(day_letter)
-            dist = r + LINE_W * 2.2
+            dist = tip_r + LINE_W * 0.9  # Added more distance between the tip and the text
             tx = cx + dist * cos_a - ext.width / 2 - ext.x_bearing
             ty = cy + dist * sin_a + ext.height / 2
             widget_w = cx * 2
