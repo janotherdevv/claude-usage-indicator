@@ -19,62 +19,45 @@ A lightweight system tray application for Linux (Ubuntu/GNOME) that displays rea
 
 ## Prerequisites
 
-Requires Python 3 and GTK 3 introspection libraries. On Ubuntu/Debian:
-
-```bash
-sudo apt install python3-gi gir1.2-gtk-3.0 python3-cairo gir1.2-appindicator3-0.1
-```
-
-## Configuration
-
-The application reads your Claude credentials from `~/.claude/.credentials.json`:
-
-```json
-{
-  "claudeAiOauth": {
-    "accessToken": "YOUR_ACCESS_TOKEN",
-    "expiresAt": 1741910400000
-  }
-}
-```
-
-`expiresAt` is optional but recommended for token validity checks (timestamp in milliseconds).
+- **Python 3.7+**
+- **Claude CLI** logged in (credentials at `~/.claude/.credentials.json`)
+- **Linux** with GTK 3 (Ubuntu/Debian/GNOME)
 
 ## Installation
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/yourusername/claude-usage-watcher.git
-   cd claude-usage-watcher
-   ```
-
-2. **Run the installation script:**
-   ```bash
-   chmod +x install.sh
-   ./install.sh
-   ```
-
-   This installs the Python package and creates an autostart entry in `~/.config/autostart/` so the app launches automatically on login.
-
-## Usage
-
-### Running manually
-
 ```bash
-python3 claude_usage_watcher.py &
+git clone https://github.com/janotherdev/claude-usage-watcher.git
+cd claude-usage-watcher
+pip install .
+claude-usage-watcher --install
 ```
 
-Or, if installed via pip:
+Or the shorthand:
+
+```bash
+./install.sh
+```
+
+The `--install` step:
+- Checks and installs system dependencies (`python3-gi`, `gir1.2-gtk-3.0`, `python3-cairo`, `gir1.2-notify-0.7`) if missing
+- Generates the initial tray icon
+- Removes any legacy autostart entries
+- Creates `~/.config/autostart/com.claudeusage.watcher.desktop` so the app launches automatically on login
+
+To remove autostart:
+
+```bash
+claude-usage-watcher --uninstall
+```
+
+## Usage
 
 ```bash
 claude-usage-watcher &
 ```
 
-### Tray interaction
-
 - **Left-click** the tray icon to open the usage popup.
 - **Right-click** to open the context menu (refresh, switch language, switch style, switch theme, quit).
-- **Dark Theme:** Menus are forced to a dark theme for visual consistency across desktop environments.
 
 ### Logs
 
@@ -88,18 +71,20 @@ Daily rotation at midnight, 30-day retention.
 
 ```
 claude-usage-watcher/
-├── claude_usage_watcher.py   ← entry point
-├── install.sh
+├── claude_usage_watcher.py   ← legacy entry point (thin wrapper)
+├── install.sh                ← shorthand: pip install + --install
+├── pyproject.toml            ← package metadata, entry point: watcher.tray:main
 └── watcher/
+    ├── __main__.py             ← allows `python -m watcher`
     ├── config.py               ← paths, constants, settings, shared logger
+    ├── installer.py            ← --install / --uninstall logic
     ├── i18n.py                 ← translation engine with EN/ES and style support
     ├── history.py              ← logs-to-history extraction and usage persistence
     ├── theme.py                ← tier thresholds, colors, CSS helpers, menu theme
     ├── icons.py                ← Cairo rendering (tray icon + gauge)
     ├── api.py                  ← token reading, API fetch, time formatting
-    ├── window.py               ← popup UI (ObsidianWindow, ClassicWindow)
     ├── tray.py                 ← ClaudeWatcher (tray icon + polling)
-    └── windows/                ← specialized UI designs (Obsidian, Classic, Desktop)
+    └── windows/                ← specialized UI designs
         ├── base.py             ← shared popup logic
         ├── obsidian.py         ← modern concentric rings
         ├── classic.py          ← traditional progress bars

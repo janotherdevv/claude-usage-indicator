@@ -524,6 +524,14 @@ class ClaudeWatcher(Gtk.Application):
 
 
 def main():
+    if "--install" in sys.argv:
+        from watcher.installer import install
+        install()
+        return
+    if "--uninstall" in sys.argv:
+        from watcher.installer import uninstall
+        uninstall()
+        return
     if "--visual-test" in sys.argv:
         from watcher.visual_test import VisualTestApp
         app = VisualTestApp()
