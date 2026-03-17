@@ -8,8 +8,9 @@ A lightweight system tray application for Linux (Ubuntu/GNOME) that displays rea
 
 ## Features
 
-- **Two themes:** Obsidian (animated concentric rings with glow) and Classic (progress bars). Switch between them via the right-click context menu — preference is saved across sessions.
-- **EN/ES & Style support:** Switch between English/Español and "Serious"/"Funny" text styles via the right-click context menu. All visible text updates immediately — menu labels, tooltips, popup window, and notifications.
+- **Privacy & Security first:** 100% safe. The application runs entirely on your machine, never asks for your credentials (it reads them from the official `~/.claude/` directory), and only communicates directly with Anthropic's official API. No third-party servers, no data collection.
+- **Three distinct themes:** Obsidian (modern concentric rings), Classic (arc progress bars), and Desktop (analog fuel gauges). Switch between them via the right-click menu — your preference is saved.
+- **EN/ES & Style support:** Switch between English/Español and "Serious"/"Funny" text styles. All UI elements update instantly.
 - **Real-time monitoring:** Displays Claude API usage for both the 5-hour and 7-day windows.
 - **Progressive colors:** Tray icon and popup colors interpolate continuously from green (0%) → amber (70%) → red (95%) → purple (100%).
 - **Dynamic tray icon:** Concentric arcs rendered in memory via Cairo — no disk I/O at runtime.
