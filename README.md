@@ -44,6 +44,13 @@ To remove autostart:
 claude-usage-watcher --uninstall
 ```
 
+## Uninstall
+
+```bash
+claude-usage-watcher --uninstall   # remove autostart
+pipx uninstall claude-usage-watcher # remove the package
+```
+
 ## Usage
 
 ```bash
