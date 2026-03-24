@@ -13,7 +13,7 @@ A lightweight system tray application for Linux (Ubuntu/GNOME) that displays rea
 - **EN/ES & Style support:** Switch between English/Español and "Serious"/"Funny" text styles. All UI elements update instantly.
 - **Real-time monitoring:** Displays Claude API usage for both the 5-hour and 7-day windows.
 - **Progressive colors:** Tray icon and popup colors interpolate continuously from green (0%) → amber (70%) → red (95%) → purple (100%).
-- **Dynamic tray icon:** Concentric arcs rendered in memory via Cairo — no disk I/O at runtime.
+- **Dynamic tray icon:** Concentric arcs rendered via Cairo, updated through AppIndicator3.
 - **Desktop notifications:** Alerts when usage crosses tier thresholds.
 - **Resource efficient:** Pure Python using only stdlib, GTK 3 bindings, and pycairo.
 
@@ -28,18 +28,12 @@ A lightweight system tray application for Linux (Ubuntu/GNOME) that displays rea
 ```bash
 git clone https://github.com/janotherdev/claude-usage-watcher.git
 cd claude-usage-watcher
-pip install .
-claude-usage-watcher --install
-```
-
-Or the shorthand:
-
-```bash
 ./install.sh
 ```
 
-The `--install` step:
-- Checks and installs system dependencies (`python3-gi`, `gir1.2-gtk-3.0`, `python3-cairo`, `gir1.2-notify-0.7`) if missing
+The install script:
+- Installs system dependencies (`python3-gi`, `python3-gi-cairo`, `python3-cairo`, `gir1.2-gtk-3.0`, `gir1.2-notify-0.7`) if missing
+- Installs the package via `pipx` (isolated env with access to system GTK bindings)
 - Generates the initial tray icon
 - Removes any legacy autostart entries
 - Creates `~/.config/autostart/com.claudeusage.watcher.desktop` so the app launches automatically on login
@@ -56,8 +50,9 @@ claude-usage-watcher --uninstall
 claude-usage-watcher &
 ```
 
-- **Left-click** the tray icon to open the usage popup.
-- **Right-click** to open the context menu (refresh, switch language, switch style, switch theme, quit).
+- **Click** the tray icon to open the menu. Select **Show Status** to see the usage popup.
+- The popup is **draggable** — drag it to your preferred position and it will remember it.
+- Use the menu to refresh, switch language, switch style, switch theme, or quit.
 
 ### Logs
 
@@ -72,7 +67,7 @@ Daily rotation at midnight, 30-day retention.
 ```
 claude-usage-watcher/
 ├── claude_usage_watcher.py   ← legacy entry point (thin wrapper)
-├── install.sh                ← shorthand: pip install + --install
+├── install.sh                ← full install: apt deps + pipx + autostart
 ├── pyproject.toml            ← package metadata, entry point: watcher.tray:main
 └── watcher/
     ├── __main__.py             ← allows `python -m watcher`
