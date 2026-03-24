@@ -3,6 +3,7 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk
 
 from ..theme import tier, utilization_color
+from ..config import update_setting
 from ..i18n import t
 
 
@@ -73,15 +74,59 @@ class BaseWindow:
         self._apply_theme(self.window)
         self.window.set_skip_taskbar_hint(True)
         self.window.set_skip_pager_hint(True)
+        self.window.set_keep_above(True)
         self.window.set_decorated(False)
         self.window.set_border_width(border_width)
         self.window.set_resizable(False)
+        # EventBox envuelve todo el contenido para capturar clics y permitir drag
+        self._event_box = Gtk.EventBox()
+        self._event_box.set_above_child(True)  # intercepta eventos ANTES que los hijos
+        self._event_box.set_visible_window(False)  # transparente, no afecta al render
+        self._event_box.connect("button-press-event", self._on_button_press)
+        self._event_box.connect("button-release-event", self._on_button_release)
+        self.window.add(self._event_box)
+        self.window.connect("configure-event", self._on_configure)
+        self._drag_settled = False
+        self._dragging = False
         if auto_hide:
-            self.window.connect("focus-out-event", lambda w, e: w.hide() or True)
+            self.window.connect("focus-out-event", self._on_focus_out)
         self.window.connect("delete-event", lambda w, e: w.hide() or True)
 
     def _apply_theme(self, window):
         pass
+
+    @property
+    def content_area(self):
+        """Contenedor donde los subclases deben añadir sus widgets."""
+        return self._event_box
+
+    def _on_focus_out(self, w, e):
+        if self._dragging:
+            return True  # no ocultar durante drag
+        w.hide()
+        return True
+
+    def _on_button_press(self, widget, event):
+        if event.button == 1:
+            self._dragging = True
+            self.window.begin_move_drag(event.button, int(event.x_root), int(event.y_root), event.time)
+            return True
+        return False
+
+    def _on_button_release(self, widget, event):
+        self._dragging = False
+        return False
+
+    def _on_configure(self, widget, event):
+        # Guardar posición solo después de que la ventana se haya colocado
+        if not self._drag_settled:
+            self._drag_settled = True
+            return False
+        # Resetear _dragging aquí porque button-release no llega tras begin_move_drag
+        self._dragging = False
+        if widget.get_visible():
+            update_setting("popup_position", [event.x, event.y])
+        return False
 
     def show(self):
         self.window.show_all()

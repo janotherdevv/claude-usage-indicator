@@ -1,22 +1,18 @@
 import logging
 import threading
-import warnings
 import sys
 from datetime import datetime
 
 import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('Notify', '0.7')
-from gi.repository import Gtk, GLib, Gdk, Gio, Notify
+gi.require_version('AppIndicator3', '0.1')
+from gi.repository import Gtk, GLib, Gdk, Gio, Notify, AppIndicator3
 
-# Desactivar advertencias de StatusIcon ya que GTK3 lo considera deprecado, 
-# pero sigue siendo la forma estándar en muchos escritorios Linux.
-warnings.filterwarnings("ignore", ".*StatusIcon.*", DeprecationWarning)
-
-from .config import POLL_INTERVAL, _log, get_theme, get_language, get_style, update_setting, CLAUDE_ICON_PATH
+from .config import POLL_INTERVAL, _log, get_theme, get_language, get_style, update_setting, get_settings, CLAUDE_ICON_PATH, USER_CACHE_DIR
 from .i18n import t
 from .theme import tier, get_menu_css
-from .icons import render_pixbuf
+from .icons import render_tray_icon
 from .api import read_token, fetch_usage, format_reset_time
 from .history import get_last_known_usage
 from .window import UsageWindow
@@ -43,35 +39,51 @@ class ClaudeWatcher(Gtk.Application):
 
         # Inicializar Notify para notificaciones robustas en Ubuntu/Linux
         Notify.init("Claude Usage Watcher")
-        Notify.set_app_name("com.claudeusage.watcher")
+        Notify.set_app_name("Claude Usage Watcher")
         _log.debug("ClaudeWatcher initialized with Notify support")
 
     def _restore_initial_state(self):
-        """Pre-rellena el icono y tooltip con datos de la sesión anterior."""
-        if not self.usage_data or not hasattr(self, "status_icon"):
+        """Pre-rellena el icono con datos de la sesión anterior."""
+        if not self.usage_data or not hasattr(self, "indicator"):
             return
         u5h = self.usage_data.get("five_hour", {}).get("utilization", 0)
         u7d = self.usage_data.get("seven_day", {}).get("utilization", 0)
-        self.status_icon.set_from_pixbuf(render_pixbuf(u5h, u7d))
-        self.status_icon.set_tooltip_text(t("tooltip.stale", five_h=u5h, seven_d=u7d))
+        self._update_tray_icon(u5h, u7d)
+
+    def _update_tray_icon(self, five_h, seven_d):
+        """Escribe el icono como PNG y actualiza el indicador.
+
+        AppIndicator3 cachea por nombre, así que alternamos entre dos nombres
+        para forzar la actualización visual.
+        """
+        self._icon_idx = 1 - self._icon_idx
+        name = f"tray-icon-{self._icon_idx}"
+        render_tray_icon(five_h, seven_d, icon_name=name)
+        self.indicator.set_icon_full(name, "Claude Usage")
+
     def do_activate(self):
         # Mantenemos la aplicación viva aunque no haya ventanas abiertas
         self.hold()
         _log.info("Application activated")
 
-        self.status_icon = Gtk.StatusIcon()
-        # Icono inicial vacío (0/0%) desde memoria (Pixbuf)
-        self.status_icon.set_from_pixbuf(render_pixbuf(0.0, 0.0))
-        self.status_icon.set_tooltip_text(t("tooltip.loading"))
-        self.status_icon.connect("activate", self._on_left_click)
-        self.status_icon.connect("popup-menu", self._on_right_click)
+        self._icon_idx = 0
+        icon_dir = str(USER_CACHE_DIR / "icons")
+        render_tray_icon(0.0, 0.0, icon_name="tray-icon-0", icon_dir=icon_dir)
+
+        self.indicator = AppIndicator3.Indicator.new(
+            "com.claudeusage.watcher",
+            "tray-icon-0",
+            AppIndicator3.IndicatorCategory.APPLICATION_STATUS,
+        )
+        self.indicator.set_icon_theme_path(icon_dir)
+        self.indicator.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
+        self.indicator.set_title(t("tooltip.loading"))
 
         self._menu = self._build_menu()
+        self.indicator.set_menu(self._menu)
 
-        # Siempre hacer un fetch inicial al arrancar.
-        # Con --autostart esperamos 10s para que la sesión se estabilice.
-        # En lanzamiento manual arrancamos a los 2s (tiempo para que el StatusIcon
-        # quede registrado en el panel antes de la primera actualización).
+        # En lanzamiento manual arrancamos a los 2s; con --autostart esperamos 10s
+        # para que la sesión gráfica se estabilice.
         initial_delay = 10 if self._autostart else 2
         self._poll_timer_id = GLib.timeout_add_seconds(initial_delay, self._poll_and_reschedule)
 
@@ -92,6 +104,12 @@ class ClaudeWatcher(Gtk.Application):
 
         menu = Gtk.Menu()
         menu.get_style_context().add_provider(provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
+        self._item_show = Gtk.MenuItem(label=t("menu.show_status"))
+        self._item_show.connect("activate", lambda _: self._on_left_click())
+        menu.append(self._item_show)
+
+        menu.append(Gtk.SeparatorMenuItem())
 
         item_refresh = Gtk.MenuItem(label=t("menu.refresh"))
         item_refresh.connect("activate", self._on_refresh_now)
@@ -187,12 +205,13 @@ class ClaudeWatcher(Gtk.Application):
         if self.usage_data:
             self._apply_usage_data(self.usage_data)
         else:
-            self.status_icon.set_from_pixbuf(render_pixbuf(0.0, 0.0))
+            self._update_tray_icon(0.0, 0.0)
 
         # Rebuild menu so the CSS guard re-evaluates for the new theme
         # (e.g. switching from Desktop back to Obsidian/Classic restores dark menu styling)
         self._menu.destroy()
         self._menu = self._build_menu()
+        self.indicator.set_menu(self._menu)
 
         # Si la ventana está abierta, la cerramos para que se recree con el nuevo diseño
         if self.popup_window:
@@ -211,6 +230,7 @@ class ClaudeWatcher(Gtk.Application):
         # Rebuild menu (also refreshes self._item_refresh reference)
         self._menu.destroy()
         self._menu = self._build_menu()
+        self.indicator.set_menu(self._menu)
 
         # Destroy popup so construction-time strings are recreated in new style
         if self.popup_window:
@@ -221,7 +241,7 @@ class ClaudeWatcher(Gtk.Application):
         if self.usage_data:
             self._apply_usage_data(self.usage_data)
         else:
-            self.status_icon.set_tooltip_text(t("tooltip.loading"))
+            self.indicator.set_title(t("tooltip.loading"))
 
     def _on_change_language(self, widget, lang):
         if not widget.get_active():
@@ -236,6 +256,7 @@ class ClaudeWatcher(Gtk.Application):
         # Rebuild menu (also refreshes self._item_refresh reference)
         self._menu.destroy()
         self._menu = self._build_menu()
+        self.indicator.set_menu(self._menu)
 
         # Destroy popup so construction-time strings are recreated in new language
         if self.popup_window:
@@ -246,7 +267,7 @@ class ClaudeWatcher(Gtk.Application):
         if self.usage_data:
             self._apply_usage_data(self.usage_data)
         else:
-            self.status_icon.set_tooltip_text(t("tooltip.loading"))
+            self.indicator.set_title(t("tooltip.loading"))
 
     def _on_quit(self, _):
         _log.info("Closing application")
@@ -300,9 +321,8 @@ class ClaudeWatcher(Gtk.Application):
         five_h = data.get("five_hour", {}).get("utilization", 0)
         seven_d = data.get("seven_day", {}).get("utilization", 0)
         
-        # Actualización de icono desde memoria (Pixbuf)
-        self.status_icon.set_from_pixbuf(render_pixbuf(five_h, seven_d))
-        self.status_icon.set_tooltip_text(t("tooltip.usage", five_h=five_h, seven_d=seven_d))
+        self._update_tray_icon(five_h, seven_d)
+        self.indicator.set_title(t("tooltip.usage", five_h=five_h, seven_d=seven_d))
 
     def _on_fetch_done(self, data, error):
         self._fetching = False
@@ -319,7 +339,7 @@ class ClaudeWatcher(Gtk.Application):
                 # Mostrar últimos datos conocidos con indicador de desactualización
                 five_h = self.usage_data.get("five_hour", {}).get("utilization", 0)
                 seven_d = self.usage_data.get("seven_day", {}).get("utilization", 0)
-                self.status_icon.set_tooltip_text(
+                self.indicator.set_title(
                     t("tooltip.stale", five_h=five_h, seven_d=seven_d)
                 )
 
@@ -464,7 +484,7 @@ class ClaudeWatcher(Gtk.Application):
             resets_at = data.get("seven_day", {}).get("resets_at", "")
         return format_reset_time(resets_at) if resets_at else "unknown"
 
-    def _on_left_click(self, icon):
+    def _on_left_click(self):
         if self.popup_window:
             self.popup_window.window.destroy()
         self.popup_window = UsageWindow()
@@ -482,42 +502,45 @@ class ClaudeWatcher(Gtk.Application):
     def _position_popup(self):
         if not self.popup_window:
             return False
-            
+
         win = self.popup_window.window
-        ok, _screen, area, _ = self.status_icon.get_geometry()
-        
-        if not ok:
-            # Si el panel aún no está listo (típico al arrancar la sesión), reintentamos en un momento.
-            GLib.timeout_add(200, self._position_popup)
+
+        # Si hay posición guardada por el usuario, usarla directamente
+        saved = get_settings().get("popup_position")
+        if saved:
+            x, y = int(saved[0]), int(saved[1])
+            win.move(x, y)
+            win.show_all()
+            win.present()
             return False
-            
-        # Calculamos el tamaño preferido antes de mostrarla para saber cuánto mide
-        # (win.get_size() devolvería 1x1 si aún no es visible)
-        requisition, _ = win.get_preferred_size()
-        w, h = requisition.width, requisition.height
-        
-        display = Gdk.Display.get_default()
-        monitor = display.get_monitor_at_point(area.x + area.width // 2, area.y + area.height // 2)
-        geom = monitor.get_geometry()
-        
-        x = max(geom.x, min(area.x, geom.x + geom.width - w))
-        
-        if area.y + area.height // 2 < geom.y + geom.height // 2:
-            y = area.y + area.height + 4
-        else:
-            y = area.y - h - 4
-            
-        win.move(x, y)
+
+        # Primera vez: posicionar cerca del puntero (esquina superior derecha del monitor)
+        win.move(-9999, -9999)
         win.show_all()
-        win.present()
+        GLib.idle_add(self._finalize_popup_position)
         return False
 
-    def _on_right_click(self, icon, button, activate_time):
-        self._menu.popup(
-            None, None,
-            Gtk.StatusIcon.position_menu,
-            icon, button, activate_time,
-        )
+    def _finalize_popup_position(self):
+        if not self.popup_window:
+            return False
+
+        win = self.popup_window.window
+        w, h = win.get_size()
+
+        display = Gdk.Display.get_default()
+        seat = display.get_default_seat()
+        pointer = seat.get_pointer()
+        _, ptr_x, ptr_y = pointer.get_position()
+        monitor = display.get_monitor_at_point(ptr_x, ptr_y)
+        geom = monitor.get_geometry()
+
+        # Posicionar en la esquina superior derecha del monitor, debajo del panel
+        x = geom.x + geom.width - w - 8
+        y = geom.y + 32
+
+        win.move(x, y)
+        win.present()
+        return False
 
     def run(self):
         # Filtrar flags propios para que GTK no los rechace como desconocidos

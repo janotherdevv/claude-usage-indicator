@@ -17,10 +17,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: POSIX :: Linux",
 ]
-dependencies = [
-    "PyGObject",
-    "pycairo",
-]
+dependencies = []  # PyGObject and pycairo come from system packages (python3-gi, python3-cairo)
 
 [project.scripts]
 claude-usage-watcher = "watcher.tray:main"

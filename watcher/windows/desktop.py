@@ -204,7 +204,7 @@ class DesktopWindow(BaseWindow):
 
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         box.set_size_request(270, -1)
-        self.window.add(box)
+        self.content_area.add(box)
 
         # --- Status label (título + descripción) ---
         self._status_label = Gtk.Label()

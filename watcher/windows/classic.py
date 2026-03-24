@@ -22,7 +22,7 @@ class ClassicWindow(BaseWindow):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
         # Forzar ancho mínimo del contenido (280px coincide con la barra)
         box.set_size_request(280, -1)
-        self.window.add(box)
+        self.content_area.add(box)
 
         self._status_label = Gtk.Label()
         self._status_label.set_markup('<span>–</span>')

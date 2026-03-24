@@ -31,7 +31,7 @@ class ObsidianWindow(BaseWindow):
         main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
         # Forzar ancho mínimo del contenido (200px coincide con el gauge)
         main_box.set_size_request(200, -1)
-        self.window.add(main_box)
+        self.content_area.add(main_box)
 
         # Status Header
         self._status_label = Gtk.Label()

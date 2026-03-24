@@ -11,13 +11,34 @@ from .config import get_theme
 from .i18n import t
 
 
+def render_tray_icon(five_h_util, seven_d_util, size=22, history=None,
+                     icon_name="tray-icon-0", icon_dir=None):
+    """Renderiza el icono del tray como PNG en disco.
+
+    AppIndicator3 requiere iconos en disco y los cachea por nombre.
+    """
+    if icon_dir is None:
+        from .config import USER_CACHE_DIR
+        icon_dir = str(USER_CACHE_DIR / "icons")
+    from pathlib import Path
+    dir_path = Path(icon_dir)
+    dir_path.mkdir(parents=True, exist_ok=True)
+    path = dir_path / f"{icon_name}.png"
+
+    surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
+    ctx = cairo.Context(surface)
+    draw_gauge(ctx, size/2, size/2, size, five_h_util, seven_d_util, is_tray=True, history=history)
+    surface.write_to_png(str(path))
+    return str(path)
+
+
 def render_pixbuf(five_h_util, seven_d_util, size=22, history=None):
     """Renderiza el icono y lo devuelve como GdkPixbuf directamente desde memoria."""
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
     ctx = cairo.Context(surface)
-    
+
     draw_gauge(ctx, size/2, size/2, size, five_h_util, seven_d_util, is_tray=True, history=history)
-    
+
     # Convertir superficie de Cairo a GdkPixbuf
     pixbuf = Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)
     return pixbuf

@@ -2,6 +2,7 @@ from .config import get_language, get_style
 
 _STRINGS_EN = {
     # Menu
+    "menu.show_status":  "Show Status",
     "menu.refresh":     "Refresh Now",
     "menu.design":      "Design",
     "menu.obsidian":    "Obsidian (Concentric)",
@@ -85,6 +86,7 @@ _STRINGS_EN_FUNNY = {
 
 _STRINGS_ES = {
     # Menu
+    "menu.show_status":  "Ver Estado",
     "menu.refresh":     "Actualizar",
     "menu.design":      "Dise\u00f1o",
     "menu.obsidian":    "Obsidian (Conc\u00e9ntrico)",

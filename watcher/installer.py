@@ -24,6 +24,7 @@ REQUIRED_GI_MODULES = {
 
 REQUIRED_PACKAGES = {
     "gi": "python3-gi",
+    "gi.repository.cairo": "python3-gi-cairo",
     "cairo": "python3-cairo",
 }
 
@@ -100,31 +101,21 @@ X-GNOME-Autostart-Delay=5
 
 
 def install():
-    """Instala el autostart: verifica deps, genera iconos, crea .desktop."""
+    """Configura autostart: genera iconos, limpia .desktop antiguos, crea .desktop nuevo.
+
+    Las dependencias del sistema se gestionan en install.sh antes de llamar aquí.
+    """
     print("Claude Usage Watcher — Install")
     print()
 
-    # 1. Verificar dependencias del sistema
-    missing = _check_system_deps()
-    if missing:
-        pkgs = " ".join(missing)
-        print(f"Missing system packages: {pkgs}")
-        print(f"Installing with: sudo apt install -y {pkgs}")
-        try:
-            subprocess.check_call(["sudo", "apt", "install", "-y"] + missing)
-        except subprocess.CalledProcessError:
-            print(f"ERROR: Could not install dependencies. Run manually:")
-            print(f"  sudo apt install -y {pkgs}")
-            sys.exit(1)
-
-    # 2. Generar iconos iniciales
+    # 1. Generar iconos iniciales
     print("Generating initial icons...")
     _generate_initial_icons()
 
-    # 3. Limpiar archivos .desktop antiguos
+    # 2. Limpiar archivos .desktop antiguos
     _remove_legacy_desktop_files()
 
-    # 4. Crear .desktop para autostart
+    # 3. Crear .desktop para autostart
     _create_desktop_file()
 
     exec_path = _find_executable()
